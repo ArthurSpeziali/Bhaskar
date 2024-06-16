@@ -1,7 +1,7 @@
 defmodule App.Main do
     def main, do: IO.puts("Falta de Argumentos.")
     
-    # @spec main(args :: [String.t]) :: String.t
+    @spec main(args :: [String.t]) :: any
     def main([string_equation]) do
 
         equation = String.replace(string_equation, " ", "")

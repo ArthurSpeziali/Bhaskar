@@ -1,5 +1,5 @@
 defmodule App.Parse do
-    @operations '*/'
+    @operations '*/='
     @signals '-+'
     @variables Enum.to_list(?A..?Z)
     @numbers Enum.to_list(?0..?9)
@@ -78,11 +78,7 @@ defmodule App.Parse do
 
 
 
-            # _operation when (char in @operations) -> :operation
             # _float when (char == ?.) -> :float
-            # _equal when (char == ?=) -> :equal
-
-            # _different when (last != nil) and (char != last) -> []
         end
 
     end
