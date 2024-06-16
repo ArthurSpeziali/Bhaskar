@@ -12,10 +12,9 @@ defmodule App.Parse do
         {:ok, agent} = Agent.start(fn -> [] end)
         agent_updater(char_list, agent)
 
-        Agent.get(agent, fn item -> item end)
-        |> inspect
-        |> IO.puts
+        agent_equation = Agent.get(agent, fn item -> item end)
         Agent.stop(agent)
+        agent_equation
     end
 
     
