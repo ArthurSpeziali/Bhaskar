@@ -4,13 +4,12 @@ defmodule App.Main do
     # @spec main(args :: [String.t]) :: String.t
     def main([string_equation]) do
 
-        equation = String.replace(string_equation, " ", "") |>
-        String.replace(",", ".") |>
-        String.upcase |>
-        String.to_charlist
+        equation = String.replace(string_equation, " ", "")
+                   |> String.replace(",", ".") 
+                   |> String.upcase
+                   |> String.to_charlist
 
         App.Parse.parse_start(equation)
-
     end
 end
 
