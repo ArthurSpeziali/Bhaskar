@@ -1,12 +1,12 @@
 defmodule App.Parse do
-    @operations '*/='
+    @operations '*/=()'
     @signals '-+'
     @variables Enum.to_list(?A..?Z)
     @numbers Enum.to_list(?0..?9)
 
 
     
-    @spec parse_start(char_list :: charlist()) :: any
+    @spec parse_start(char_list :: charlist()) :: [charlist()]
     def parse_start(char_list) do 
 
         {:ok, agent} = Agent.start(fn -> [] end)
@@ -18,7 +18,7 @@ defmodule App.Parse do
     end
 
     
-    @spec agent_updater(char_list :: charlist(), agent :: Agent.agent()) :: any
+    @spec agent_updater(char_list :: charlist(), agent :: Agent.agent()) :: nil
     defp agent_updater([], _agent), do: nil
     defp agent_updater(char_list, agent) do
         set_chars = parse_case(char_list, nil)
@@ -40,7 +40,7 @@ defmodule App.Parse do
     end
 
 
-    @spec parse_case(char_list :: charlist(), last :: char() | nil) :: any
+    @spec parse_case(char_list :: charlist(), last :: char() | nil) :: list(charlist()) | []
     defp parse_case([], _last), do: []
     defp parse_case([char | tail], last) do
 
@@ -50,6 +50,12 @@ defmodule App.Parse do
 
             _variable when (char in @numbers) and (last in @variables) ->
                 '*'
+
+            float when (char == ?.) and (last in @numbers) ->
+                [float | parse_case(tail, char)]
+
+            _float when (char == ?.) -> raise(ArgumentError, "Decimal inválido")
+
 
             _number when (char not in @numbers) and (last in @numbers) -> []
             _variable when (char not in @variables) and (last in @variables) -> []
@@ -74,10 +80,6 @@ defmodule App.Parse do
 
             operation when (char in @operations) and (last == nil) -> [operation]
             _operation when (char in @operations) -> []
-
-
-
-            # _float when (char == ?.) -> :float
         end
 
     end
