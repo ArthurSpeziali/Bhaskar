@@ -40,7 +40,7 @@ defmodule App.Parse do
     end
 
 
-    @spec parse_case(char_list :: charlist(), last :: char() | nil) :: list(charlist()) | []
+    @spec parse_case(charlist(), last :: charlist() | char() | nil) :: [charlist()]
     defp parse_case([], _last), do: []
     defp parse_case([char | tail], last) do
 
@@ -83,4 +83,20 @@ defmodule App.Parse do
         end
 
     end
+
+
+    @spec insert_equation(equation :: [charlist()], to_insert :: [charlist()], parse :: non_neg_integer()) :: [charlist()]
+    def insert_equation(equation, [], _parse), do: equation
+    def insert_equation(equation, [head | tail]=_to_insert, parse) do
+        List.insert_at(equation, parse, head)
+        |> insert_equation(tail, parse + 1)
+    end
+
+
+    @spec drop_equation(equation :: [charlist()], start :: integer(), final :: integer()) :: [charlist()]
+    def drop_equation(equation, index, repeat) when repeat > 0 do
+        List.delete_at(equation, index)
+        |> drop_equation(index, repeat - 1)
+    end
+    def drop_equation(equation, _index, _repeat), do: equation
 end
