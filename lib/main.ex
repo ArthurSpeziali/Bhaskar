@@ -7,7 +7,11 @@ defmodule App.Main do
             List.first(args)
         )
         
-        App.Sintax.sintax_verify(equation)
+        result = App.Sintax.sintax_verify(equation)
+                 |> List.to_string()
+
+        IO.puts(result)
+        result
     end
 
     def format(string) do
