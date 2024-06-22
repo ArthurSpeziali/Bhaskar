@@ -8,7 +8,7 @@ defmodule App.Parse do
     
     @spec parse_start(char_list :: charlist()) :: [charlist()]
     def parse_start(char_list) do 
-        char_list = auto_implement(char_list, nil)
+        char_list = auto_implement(:multiply, char_list, nil)
 
         {:ok, agent} = Agent.start(fn -> [] end)
         agent_updater(char_list, agent)
@@ -105,14 +105,41 @@ defmodule App.Parse do
     def drop_equation(equation, _index, _repeat), do: equation
 
 
-    # @spec auto_implement(charlist(), last :: char()) :: charlist()
-    defp auto_implement([], _last), do: []
-    defp auto_implement([char | tail], last) do
+    # @spec auto_implement(atom(), charlist(), last :: char() | nil) :: charlist()
+    def auto_implement(_atom, [], _last), do: []
+
+    def auto_implement(:multiply, [char | tail], last) do
         if (char == ?() && (last in @numbers || last in @variables) do
-            [?* | [?( | auto_implement(tail, char)]]
+            [?* | [?( | auto_implement(:multiply, tail, char)]]
         else
-            [char | auto_implement(tail, char)]
+            [char | auto_implement(:multiply, tail, char)]
         end
     end
 
+    def auto_implement(:plus, [char | tail], last) do
+        
+        cond do
+            char == '-' || char == '+' ->
+                [next | remaing] = tail
+
+                if List.first(next) == ?- do
+                    auto_implement(:plus, tail, char)
+                else
+                    [
+                        char ++ next
+                        |
+                        auto_implement(:plus, remaing, char)
+                    ]
+                end
+
+            last == '-' ->
+                [?- | exp] = char
+                [exp]
+            
+
+            true ->
+                [char | auto_implement(:plus, tail, char)]
+        end
+    
+    end
 end

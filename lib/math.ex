@@ -2,11 +2,13 @@ defmodule App.Math do
 
     @spec resolve([charlist()]) :: [charlist()]
     def resolve(equation) do
-        result = resolve_plus(equation) 
+        result = App.Parse.auto_implement(:plus, equation, nil)
+                 |> resolve_plus() 
+
         if is_float(result) do
             [
                 Float.round(result, 2)
-                |>Float.to_charlist()
+                |> Float.to_charlist()
             ]
         else
             [
