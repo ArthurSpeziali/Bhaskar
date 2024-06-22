@@ -23,9 +23,9 @@ defmodule App.Sintax do
 
     
     # @spec sintax_verify(atom(), [charlist()], count :: non_neg_integer()) :: false | {integer(), integer()}
-    def sintax_verify(_atom, [], _equation, _count), do: false
+    defp sintax_verify(_atom, [], _equation, _count), do: false
 
-    def sintax_verify(:bracket_begin, [exp | tail], equation, count) do
+    defp sintax_verify(:bracket_begin, [exp | tail], equation, count) do
         if exp == '(' do
 
             bracket_end = sintax_verify(:bracket_end, tail, equation, count)
@@ -40,7 +40,7 @@ defmodule App.Sintax do
         end
     end
 
-    def sintax_verify(:bracket_end, [exp | tail], equation, count) do
+    defp sintax_verify(:bracket_end, [exp | tail], equation, count) do
 
         cond do
             exp == ')' -> 
@@ -58,7 +58,7 @@ defmodule App.Sintax do
     end
 
 
-    def sintax_verify(:operator, [exp | tail], _equation, count) do
+    defp sintax_verify(:operator, [exp | tail], _equation, count) do
         if exp in @operators do
             count
         else
@@ -68,12 +68,12 @@ defmodule App.Sintax do
 
 
     @spec bracket_finder(charlist(), count :: integer()) :: nil
-    def bracket_finder(equation, count \\ 0)
-    def bracket_finder([], count) do
+    defp bracket_finder(equation, count \\ 0)
+    defp bracket_finder([], count) do
         if count != 0, do: raise(ArgumentError, "Parenteses inválidos")
     end
 
-    def bracket_finder([char | tail], count) when count >= 0 do
+    defp bracket_finder([char | tail], count) when count >= 0 do
         
         if char == ?( do 
             bracket_finder(tail, count + 1)
@@ -83,12 +83,12 @@ defmodule App.Sintax do
 
     end
 
-    def bracket_finder(_equation, _count), do: raise(ArgumentError, "Parenteses inválidos")
+    defp bracket_finder(_equation, _count), do: raise(ArgumentError, "Parenteses inválidos")
 
 
 
     @spec bracket_resolver(equation :: [charlist()]) :: [charlist()]
-    def bracket_resolver(equation) do
+    defp bracket_resolver(equation) do
         brackets = sintax_verify(:bracket_begin, equation, equation, 0)
         
         if brackets do
@@ -116,7 +116,7 @@ defmodule App.Sintax do
 
     
     @spec operator_resolver(equation :: [charlist()]) :: [charlist()] | false
-    def operator_resolver(equation) do
+    defp operator_resolver(equation) do
         operators = sintax_verify(:operator, equation, equation, 0)
 
         if operators do
