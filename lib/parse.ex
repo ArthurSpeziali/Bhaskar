@@ -8,6 +8,7 @@ defmodule App.Parse do
     
     @spec parse_start(char_list :: charlist()) :: [charlist()]
     def parse_start(char_list) do 
+        char_list = auto_implement(char_list, nil)
 
         {:ok, agent} = Agent.start(fn -> [] end)
         agent_updater(char_list, agent)
@@ -51,6 +52,7 @@ defmodule App.Parse do
             _variable when (char in @numbers) and (last in @variables) ->
                 '*'
 
+
             float when (char == ?.) and (last in @numbers) ->
                 [float | parse_case(tail, char)]
 
@@ -78,6 +80,8 @@ defmodule App.Parse do
             signal when (char in @signals) ->
                 [signal | parse_case(tail, char)]
 
+
+
             operation when (char in @operations) and (last == nil) -> [operation]
             _operation when (char in @operations) -> []
         end
@@ -99,4 +103,16 @@ defmodule App.Parse do
         |> drop_equation(index, repeat - 1)
     end
     def drop_equation(equation, _index, _repeat), do: equation
+
+
+    # @spec auto_implement(charlist(), last :: char()) :: charlist()
+    defp auto_implement([], _last), do: []
+    defp auto_implement([char | tail], last) do
+        if (char == ?() && (last in @numbers || last in @variables) do
+            [?* | [?( | auto_implement(tail, char)]]
+        else
+            [char | auto_implement(tail, char)]
+        end
+    end
+
 end

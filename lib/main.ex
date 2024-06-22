@@ -2,14 +2,21 @@ defmodule App.Main do
     def main, do: IO.puts("Falta de Argumentos.")
     
     @spec main(args :: [String.t]) :: any
-    def main([string_equation]) do
+    def main(args) do
+        equation = format(
+            List.first(args)
+        )
+        
+        App.Sintax.sintax_verify(equation)
+    end
 
-        equation = String.replace(string_equation, " ", "")
-                   |> String.replace(",", ".") 
-                   |> String.upcase
-                   |> String.to_charlist
+    def format(string) do
+        String.replace(string, " ", "")
+           |> String.replace(",", ".") 
+           |> String.upcase
+           |> String.to_charlist
+           |> App.Parse.parse_start()
 
-        App.Parse.parse_start(equation)
     end
 end
 
