@@ -5,12 +5,12 @@ defmodule App.Sintax do
     def sintax_resolver(equation) do
 
         cond do
-            bracket_resolver(equation) -> 
+            bracket_resolver(:bool, equation) -> 
                 sintax_resolver(
                     bracket_resolver(equation)
                 )
             
-            operator_resolver(equation) ->
+            operator_resolver(:bool, equation) ->
                 sintax_resolver(
                     operator_resolver(equation)
                 )
@@ -23,12 +23,13 @@ defmodule App.Sintax do
 
     
     # @spec sintax_verify(atom(), [charlist()], count :: non_neg_integer()) :: false | {integer(), integer()}
-    defp sintax_verify(_atom, [], _equation, _count), do: false
+    def sintax_verify(:bracket_pair, [], _equation, count), do: count - 2
+    def sintax_verify(_atom, [], _equation, _count), do: false
 
-    defp sintax_verify(:bracket_begin, [exp | tail], equation, count) do
+    def sintax_verify(:bracket_begin, [exp | tail], equation, count) do
         if exp == '(' do
 
-            bracket_end = sintax_verify(:bracket_end, tail, equation, count)
+            bracket_end = sintax_verify(:bracket_end, tail, equation, count + 1)
             if bracket_end do
                 {count, bracket_end}
             else
@@ -40,16 +41,14 @@ defmodule App.Sintax do
         end
     end
 
-    defp sintax_verify(:bracket_end, [exp | tail], equation, count) do
+    def sintax_verify(:bracket_end, [exp | tail], equation, count) do
 
         cond do
             exp == ')' -> 
-                count
+                count - 1
 
             exp == '(' ->
-                close = sintax_verify(:bracket_end, tail, equation, count)
-                result = Enum.slice(equation, close..-1)
-                sintax_verify(:bracket_end, result, equation, close)
+                sintax_verify(:bracket_pair, tail, equation, count + 1)
                 
             true ->
                 sintax_verify(:bracket_end, tail, equation, count + 1)
@@ -57,8 +56,29 @@ defmodule App.Sintax do
 
     end
 
+    def sintax_verify(:bracket_pair, [exp | tail], equation, count) do
+        index_value = Enum.find_index(
+            [exp | tail],
+            &(&1 == ')')
+        )
 
-    defp sintax_verify(:operator, [exp | tail], _equation, count) do
+        if index_value do
+            remaing = App.Parse.drop_equation(
+                [exp | tail],
+                0,
+                index_value + 1
+            )
+            count = count + index_value
+
+            sintax_verify(:bracket_pair, remaing, equation, count + 1)
+        else
+            count - 2
+        end
+
+    end
+
+
+    def sintax_verify(:operator, [exp | tail], _equation, count) do
         if exp in @operators do
             count
         else
@@ -68,12 +88,11 @@ defmodule App.Sintax do
 
 
     @spec bracket_finder(charlist(), count :: integer()) :: nil
-    defp bracket_finder(equation, count \\ 0)
-    defp bracket_finder([], count) do
-        if count != 0, do: raise(ArgumentError, "Parenteses inválidos")
+    def bracket_finder([], count) do
+        if count != 0, do: raise(ArgumentError, "Parenteses inválidos #{count}")
     end
 
-    defp bracket_finder([char | tail], count) when count >= 0 do
+    def bracket_finder([char | tail], count) when count >= 0 do
         
         if char == ?( do 
             bracket_finder(tail, count + 1)
@@ -83,24 +102,26 @@ defmodule App.Sintax do
 
     end
 
-    defp bracket_finder(_equation, _count), do: raise(ArgumentError, "Parenteses inválidos")
+    def bracket_finder(_equation, _count), do: raise(ArgumentError, "Parenteses inválidos")
 
 
+    @spec bracket_resolver(:bool, equation :: [charlist()]) :: false | any()
+    def bracket_resolver(:bool, equation) do
+        sintax_verify(:bracket_begin, equation, equation, 0)
+    end
 
     @spec bracket_resolver(equation :: [charlist()]) :: [charlist()]
-    defp bracket_resolver(equation) do
+    def bracket_resolver(equation) do
         brackets = sintax_verify(:bracket_begin, equation, equation, 0)
         
         if brackets do
             List.flatten(equation)
             |> Enum.filter(
                 &(&1 == ?( or &1 == ?))
-            ) |> bracket_finder()
+            ) |> bracket_finder(0)
 
 
-            # Aqui o Dialyzer's não ajuda :/
             {start, final} = brackets
-
             result = Enum.slice(
                 equation,
                 start+1..final
@@ -114,9 +135,14 @@ defmodule App.Sintax do
 
     end
 
+
+    @spec operator_resolver(:bool, equation :: [charlist()]) :: false | any()
+    def operator_resolver(:bool, equation) do
+        sintax_verify(:operator, equation, equation, 0)
+    end
     
     @spec operator_resolver(equation :: [charlist()]) :: [charlist()] | false
-    defp operator_resolver(equation) do
+    def operator_resolver(equation) do
         operators = sintax_verify(:operator, equation, equation, 0)
 
         if operators do
