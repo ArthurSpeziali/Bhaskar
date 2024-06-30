@@ -5,6 +5,9 @@ defmodule App.Sintax do
     def sintax_resolver(equation) do
 
         cond do
+            equal_resolve(:bool, equation) ->
+                equal_resolve(equation)
+
             bracket_resolver(:bool, equation) -> 
                 sintax_resolver(
                     bracket_resolver(equation)
@@ -86,6 +89,33 @@ defmodule App.Sintax do
         end
     end
 
+    defp sintax_verify(:equal, [exp | tail], _equation, _count) do
+        index_value = Enum.find_index(
+            [exp | tail],
+            &(&1 == '=')
+        )
+
+        if index_value do
+            frequencies = Enum.frequencies([exp | tail])
+            if frequencies['='] > 1, do: raise(ArgumentError, "Mais de um sinal de igual")
+
+
+            left = Enum.slice(
+                [exp | tail],
+                0..index_value - 1
+            )
+            right = Enum.slice(
+                [exp | tail],
+                index_value + 1..-1
+            )
+
+            {left, right}
+        else
+            false
+        end
+    end
+
+
 
     @spec bracket_finder(charlist(), count :: integer()) :: nil
     defp bracket_finder([], count) do
@@ -155,4 +185,29 @@ defmodule App.Sintax do
         end
 
     end
+
+
+    @spec equal_resolve(:bool, equation :: [charlist()]) :: false | any()
+    defp equal_resolve(:bool, equation) do
+        sintax_verify(:equal, equation, equation, 0)
+    end
+
+    @spec equal_resolve(equation :: [charlist()]) :: any()
+    defp equal_resolve(equation) do
+        equals = sintax_verify(:equal, equation, equation, 0)
+        
+        if equals do
+            {left, right} = equals
+
+            left_resolve = App.Sintax.sintax_resolver(left)
+            right_resolve = App.Sintax.sintax_resolver(right)
+
+            if left_resolve != right_resolve, do: raise(ArgumentError, "Igualdade não equivalente dos dois lados")
+
+            left_resolve
+        else
+            false
+        end
+    end
+
 end
