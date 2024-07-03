@@ -109,10 +109,15 @@ defmodule App.Parse do
     def auto_implement(_atom, [], _last), do: []
 
     def auto_implement(:multiply, [char | tail], last) do
-        if (char == ?() && (last in @numbers || last in @variables) do
-            [?* | [?( | auto_implement(:multiply, tail, char)]]
-        else
-            [char | auto_implement(:multiply, tail, char)]
+        cond do
+            (char == ?() && (last in @numbers || last in @variables) ->
+                [?* | [?( | auto_implement(:multiply, tail, char)]]
+
+            (char in @numbers || char in @variables) && ( last == ?) ) ->
+                [?* | [char | auto_implement(:multiply, tail, char)]]
+            
+            true ->
+                [char | auto_implement(:multiply, tail, char)]
         end
     end
 

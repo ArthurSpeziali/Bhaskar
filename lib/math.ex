@@ -7,7 +7,7 @@ defmodule App.Math do
 
         if is_float(result) do
             [
-                Float.round(result, 2)
+                Float.round(result, 8)
                 |> Float.to_charlist()
             ]
         else
@@ -52,7 +52,7 @@ defmodule App.Math do
                 if is_float(previous * next) do
                     Float.round(
                         previous * next, 
-                        2
+                        8
                     )
                 else
                     previous * next
@@ -61,7 +61,7 @@ defmodule App.Math do
             '/' -> 
                 Float.round(
                     previous / next,
-                    2
+                    8
                 )
         end
 

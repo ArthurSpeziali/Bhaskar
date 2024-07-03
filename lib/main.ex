@@ -7,9 +7,21 @@ defmodule App.Main do
             List.first(args)
         )
         
-        App.Sintax.sintax_resolver(equation)
-                 |> List.to_string()
-                 |> IO.puts()
+        result = App.Sintax.sintax_resolver(equation)
+        case result do
+
+            [term] ->
+                if ?. in term do
+                    List.to_float(term)
+                    |> Float.round(2)
+
+                else
+                    List.to_integer(term)
+
+                end |> IO.puts()
+
+        end
+
     end
 
     def format(string) do
