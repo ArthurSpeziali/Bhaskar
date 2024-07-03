@@ -20,8 +20,8 @@ defmodule App.Variable do
                 calculate = [invert_signal(
                     App.Sintax.sintax_resolver(calculate)
                 )]
+
                 {char, calculate}
-            
             else
                 {char, App.Sintax.sintax_resolver(calculate)}
             end
