@@ -30,7 +30,6 @@ defmodule App.Main do
            |> String.upcase
            |> String.to_charlist
            |> App.Parse.parse_start()
-
     end
 end
 

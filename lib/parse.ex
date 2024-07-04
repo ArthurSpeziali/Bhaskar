@@ -1,4 +1,6 @@
 defmodule App.Parse do
+    @dialyzer {:nowarn_function, parse_start: 1, agent_updater: 2, parse_case: 2}
+
     @operations '*/=()'
     @signals '-+'
     @variables Enum.to_list(?A..?Z)
@@ -9,11 +11,14 @@ defmodule App.Parse do
     @spec parse_start(char_list :: charlist()) :: [charlist()]
     def parse_start(char_list) do 
         char_list = auto_implement(:multiply, char_list, nil)
+                    |> variable_implement(nil)
 
         {:ok, agent} = Agent.start(fn -> [] end)
         agent_updater(char_list, agent)
 
         agent_equation = Agent.get(agent, fn item -> item end)
+                         |> variable_signal()
+
         Agent.stop(agent)
         agent_equation
     end
@@ -26,14 +31,9 @@ defmodule App.Parse do
 
         Agent.update(agent, fn
             item ->
-
-                if List.last(set_chars) == ?* && length(set_chars) > 1 do
-                    item ++ [(set_chars -- '*')] ++ ['*']
-                else
-                    item ++ [set_chars]
-                end
+                item ++ [set_chars]
         end)
-
+        
         agent_updater(
             char_list -- set_chars,
             agent
@@ -46,13 +46,6 @@ defmodule App.Parse do
     defp parse_case([char | tail], last) do
 
         case char do
-            _number when (char in @variables) and (last in @numbers) ->
-                '*'
-
-            _variable when (char in @numbers) and (last in @variables) ->
-                '*'
-
-
             float when (char == ?.) and (last in @numbers) ->
                 [float | parse_case(tail, char)]
 
@@ -61,6 +54,7 @@ defmodule App.Parse do
 
             _number when (char not in @numbers) and (last in @numbers) -> []
             _variable when (char not in @variables) and (last in @variables) -> []
+
             signal when (char in @numbers or char in @variables) and (last in @signals) -> 
                 [signal | parse_case(tail, char)]
 
@@ -81,8 +75,9 @@ defmodule App.Parse do
                 [signal | parse_case(tail, char)]
 
 
+            operation when (char in @operations) and (last == nil) -> 
+                [operation]
 
-            operation when (char in @operations) and (last == nil) -> [operation]
             _operation when (char in @operations) -> []
         end
 
@@ -146,5 +141,36 @@ defmodule App.Parse do
                 [char | auto_implement(:plus, tail, char)]
         end
     
+    end
+
+
+    @spec variable_implement(charlist(), last :: char()) :: charlist()
+    defp variable_implement([], _last), do: []
+
+    defp variable_implement([char | tail], last) do
+        cond do 
+            (char in @numbers) && (last in @variables) ->
+                [?* | [char | variable_implement(tail, char)]]
+
+            (char in @variables) && (last in @numbers) ->
+                [?* | [char | variable_implement(tail, char)]]
+
+            true ->
+                [char | variable_implement(tail, char)]
+        end
+    end
+
+
+    @spec variable_implement(charlist(), last :: char()) :: charlist()
+    defp variable_signal([]), do: []
+
+    defp variable_signal([ [signal, var] | tail]) when var in @variables do
+        [[signal, var] | variable_signal(tail)]
+    end
+    defp variable_signal([ [var] | tail]) when var in @variables do
+        [[?+, var] | variable_signal(tail)]
+    end
+    defp variable_signal([exp | tail]) do
+        [exp | variable_signal(tail)]
     end
 end

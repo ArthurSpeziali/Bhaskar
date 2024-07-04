@@ -1,12 +1,14 @@
 defmodule App.Sintax do
+    @dialyzer {:nowarn_function, variable_resolver: 2, variable_resolver: 3, sintax_verify: 4}
+    
     @operators ['/', '*']
 
     @spec sintax_resolver(equation :: [charlist()]) :: any()
     def sintax_resolver(equation) do
 
         cond do
-            equal_resolve(:bool, equation) ->
-                equal_resolve(equation)
+            equal_resolver(:bool, equation) ->
+                equal_resolver(equation)
 
             bracket_resolver(:bool, equation) -> 
                 sintax_resolver(
@@ -25,7 +27,7 @@ defmodule App.Sintax do
     end
 
     
-    # @spec sintax_verify(atom(), [charlist()], count :: non_neg_integer()) :: false | {integer(), integer()}
+    @spec sintax_verify(atom(), [charlist()], equation :: [charlist()], count :: non_neg_integer()) :: any()
     defp sintax_verify(:bracket_pair, [], _equation, count), do: count - 2
     defp sintax_verify(_atom, [], _equation, _count), do: false
 
@@ -187,13 +189,13 @@ defmodule App.Sintax do
     end
 
 
-    @spec equal_resolve(:bool, equation :: [charlist()]) :: false | any()
-    defp equal_resolve(:bool, equation) do
+    @spec equal_resolver(:bool, equation :: [charlist()]) :: false | any()
+    defp equal_resolver(:bool, equation) do
         sintax_verify(:equal, equation, equation, 0)
     end
 
-    @spec equal_resolve(equation :: [charlist()]) :: any()
-    defp equal_resolve(equation) do
+    @spec equal_resolver(equation :: [charlist()]) :: any()
+    defp equal_resolver(equation) do
         equals = sintax_verify(:equal, equation, equation, 0)
         
         if equals do
@@ -208,6 +210,48 @@ defmodule App.Sintax do
         else
             false
         end
+    end
+
+
+    @spec variable_resolver(:bool, equation :: [charlist()], agent :: Agent.agent()) :: false | any()
+    def variable_resolver(:bool, equation, _agent) do
+        App.Variable.find_variable(equation, 0)
+    end
+
+    @spec variable_resolver(equation :: [charlist()], agent :: Agent.agent()) :: [charlist()]
+    def variable_resolver(equation, agent) do
+        variables = App.Variable.find_variable(equation, 0)
+
+        {char, _count} = variables
+        equals = equal_resolver(:bool, equation)
+
+        if !equals, do: raise(ArgumentError, "Valor de #{char} não foi encontrado!")
+        {left, right} = equals
+
+        {operation, value} = cond do
+            char in left ->
+                {left, right}
+
+            char in right ->
+                {right, left}
+
+            (char in left) && (char in right) ->
+                raise(ArgumentError, "Valor de #{char} não foi encontrado!")
+        end
+
+        [value] = App.Sintax.sintax_resolver(value)
+        variable_value = App.Variable.assign(operation, value)
+        
+        Agent.update(
+            agent,
+            fn item ->
+                Map.put(
+                    item,
+                    char,
+                    variable_value)
+            end)
+
+        [value]
     end
 
 end
