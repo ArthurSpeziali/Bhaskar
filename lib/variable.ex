@@ -1,5 +1,5 @@
 defmodule App.Variable do
-    @dialyzer {:nowarn_function, assign: 2, invert_signal: 1, swap_variable: 3, get_variable: 2, variable_plus: 3}
+    @dialyzer {:nowarn_function, assign: 2, invert_signal: 1, swap_variable: 3, get_variable: 2, variable_plus: 3, variable_multiply: 1, variable_operator: 2}
 
     @type equation_type :: [charlist()]
     @variables Enum.to_list(?A..?Z)
@@ -9,7 +9,7 @@ defmodule App.Variable do
 
 
     @spec variable_multiply(equation :: equation_type) :: equation_type
-    def variable_multiply(equation) do
+    defp variable_multiply(equation) do
         disable_operator = fn operator ->
             if operator == '/' do
                 'd'
@@ -66,8 +66,8 @@ defmodule App.Variable do
 
 
     @spec variable_plus(equation_type, right :: equation_type, left :: equation_type) :: equation_type
-    def variable_plus([], right, left), do: {right, left}
-    def variable_plus([exp | tail], right, left) do
+    defp variable_plus([], right, left), do: {right, left}
+    defp variable_plus([exp | tail], right, left) do
         next =
             if tail != [] do
                 [next | _] = tail
@@ -96,8 +96,8 @@ defmodule App.Variable do
 
 
     @spec variable_operator(equation_type, right :: equation_type) :: equation_type
-    def variable_operator([], right), do: right
-    def variable_operator([exp | tail], right) do
+    defp variable_operator([], right), do: right
+    defp variable_operator([exp | tail], right) do
         [next, remaing] =
             if tail != [] do
                 [next | remaing] = tail
