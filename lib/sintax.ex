@@ -1,12 +1,41 @@
 defmodule App.Sintax do
-    @dialyzer {:nowarn_function, variable_resolver: 2, variable_resolver: 3, sintax_verify: 4}
-    
+    @dialyzer {:nowarn_function, variable_resolver: 2, variable_resolver: 3, sintax_verify: 4, sintax_main: 2, sintax_resolver: 1, bracket_finder: 2, bracket_resolver: 2, operator_resolver: 2, bracket_resolver: 1, operator_resolver: 1, equal_resolver: 2, equal_resolver: 1}
+
     @operators ['/', '*']
+    @type equation_type :: [charlist()]
 
-    @spec sintax_resolver(equation :: [charlist()]) :: any()
+    
+    @spec sintax_main(list_equation :: [equation_type], :agent | Agent.agent()) :: [equation_type]
+    def sintax_main(list_equation, :agent) do
+        {:ok, agent} = Agent.start(fn -> %{} end)
+        sintax_main(list_equation, agent)
+    end
+    
+    def sintax_main(list_equation, agent) do
+        result = 
+            for item <- list_equation do
+                item = App.Variable.get_variable(item, agent)
+
+                item = 
+                    if variable_resolver(:bool, item, agent) do
+                        variable_resolver(item, agent)
+                    else
+                        item
+                    end
+
+                sintax_resolver(item)
+            end
+
+        {agent, result}
+    end
+
+
+    @spec sintax_resolver(equation :: equation_type) :: equation_type
     def sintax_resolver(equation) do
-
         cond do
+            variable_resolver(:bool, equation, nil) ->
+                raise(ArgumentError, "Valor de váriaveis não especificadas")
+
             equal_resolver(:bool, equation) ->
                 equal_resolver(equation)
 
@@ -27,7 +56,7 @@ defmodule App.Sintax do
     end
 
     
-    @spec sintax_verify(atom(), [charlist()], equation :: [charlist()], count :: non_neg_integer()) :: any()
+    @spec sintax_verify(atom(), equation_type, equation :: equation_type, count :: non_neg_integer()) :: any()
     defp sintax_verify(:bracket_pair, [], _equation, count), do: count - 2
     defp sintax_verify(_atom, [], _equation, _count), do: false
 
@@ -137,13 +166,13 @@ defmodule App.Sintax do
     defp bracket_finder(_equation, _count), do: raise(ArgumentError, "Parenteses inválidos")
 
 
-    @spec bracket_resolver(:bool, equation :: [charlist()]) :: false | any()
-    defp bracket_resolver(:bool, equation) do
+    @spec bracket_resolver(:bool, equation :: equation_type) :: false | any()
+    def bracket_resolver(:bool, equation) do
         sintax_verify(:bracket_begin, equation, equation, 0)
     end
 
-    @spec bracket_resolver(equation :: [charlist()]) :: [charlist()]
-    defp bracket_resolver(equation) do
+    @spec bracket_resolver(equation :: equation_type) :: equation_type
+    def bracket_resolver(equation) do
         brackets = sintax_verify(:bracket_begin, equation, equation, 0)
         
         if brackets do
@@ -168,13 +197,13 @@ defmodule App.Sintax do
     end
 
 
-    @spec operator_resolver(:bool, equation :: [charlist()]) :: false | any()
-    defp operator_resolver(:bool, equation) do
+    @spec operator_resolver(:bool, equation :: equation_type) :: false | any()
+    def operator_resolver(:bool, equation) do
         sintax_verify(:operator, equation, equation, 0)
     end
     
-    @spec operator_resolver(equation :: [charlist()]) :: [charlist()] | false
-    defp operator_resolver(equation) do
+    @spec operator_resolver(equation :: equation_type) :: equation_type | false
+    def operator_resolver(equation) do
         operators = sintax_verify(:operator, equation, equation, 0)
 
         if operators do
@@ -189,12 +218,12 @@ defmodule App.Sintax do
     end
 
 
-    @spec equal_resolver(:bool, equation :: [charlist()]) :: false | any()
+    @spec equal_resolver(:bool, equation :: equation_type) :: false | any()
     defp equal_resolver(:bool, equation) do
         sintax_verify(:equal, equation, equation, 0)
     end
 
-    @spec equal_resolver(equation :: [charlist()]) :: any()
+    @spec equal_resolver(equation :: equation_type) :: any()
     defp equal_resolver(equation) do
         equals = sintax_verify(:equal, equation, equation, 0)
         
@@ -213,19 +242,19 @@ defmodule App.Sintax do
     end
 
 
-    @spec variable_resolver(:bool, equation :: [charlist()], agent :: Agent.agent()) :: false | any()
+    @spec variable_resolver(:bool, equation :: equation_type, agent :: Agent.agent()) :: false | any()
     def variable_resolver(:bool, equation, _agent) do
         App.Variable.find_variable(equation, 0)
     end
 
-    @spec variable_resolver(equation :: [charlist()], agent :: Agent.agent()) :: [charlist()]
+    @spec variable_resolver(equation :: equation_type, agent :: Agent.agent()) :: equation_type
     def variable_resolver(equation, agent) do
         variables = App.Variable.find_variable(equation, 0)
 
         {char, _count} = variables
         equals = equal_resolver(:bool, equation)
 
-        if !equals, do: raise(ArgumentError, "Valor de #{char} não foi encontrado!")
+        if !equals, do: raise(ArgumentError, "Valor de #{char} não foi encontrado")
         {left, right} = equals
 
         {operation, value} = cond do
@@ -236,11 +265,12 @@ defmodule App.Sintax do
                 {right, left}
 
             (char in left) && (char in right) ->
-                raise(ArgumentError, "Valor de #{char} não foi encontrado!")
+                raise(ArgumentError, "Valor de #{char} não foi encontrado")
         end
 
         [value] = App.Sintax.sintax_resolver(value)
         variable_value = App.Variable.assign(operation, value)
+        char = List.replace_at(char, 0, ?+)
         
         Agent.update(
             agent,

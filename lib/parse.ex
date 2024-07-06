@@ -1,15 +1,29 @@
 defmodule App.Parse do
-    @dialyzer {:nowarn_function, parse_start: 1, agent_updater: 2, parse_case: 2}
+    @dialyzer {:nowarn_function, parse_main: 1, agent_updater: 2, parse_case: 2}
 
+    @type equation_type :: [charlist()]
     @operations '*/=()'
     @signals '-+'
     @variables Enum.to_list(?A..?Z)
     @numbers Enum.to_list(?0..?9)
 
 
+    @spec parse_start(charlist :: charlist()) :: [equation_type]
+    def parse_start(char_list) do
+        equation_list = List.to_string(char_list)
+                        |> String.split(";")
+                        |> Enum.map(fn item ->
+                            String.to_charlist(item)
+                        end)
+
+        for item <- equation_list do
+            parse_main(item)    
+        end
+    end
+
     
-    @spec parse_start(char_list :: charlist()) :: [charlist()]
-    def parse_start(char_list) do 
+    @spec parse_main(char_list :: charlist()) :: equation_type
+    defp parse_main(char_list) do 
         char_list = auto_implement(:multiply, char_list, nil)
                     |> variable_implement(nil)
 
@@ -41,7 +55,7 @@ defmodule App.Parse do
     end
 
 
-    @spec parse_case(charlist(), last :: charlist() | char() | nil) :: [charlist()]
+    @spec parse_case(charlist(), last :: charlist() | char() | nil) :: equation_type
     defp parse_case([], _last), do: []
     defp parse_case([char | tail], last) do
 
@@ -84,7 +98,7 @@ defmodule App.Parse do
     end
 
 
-    @spec insert_equation(equation :: [charlist()], to_insert :: [charlist()], parse :: non_neg_integer()) :: [charlist()]
+    @spec insert_equation(equation :: equation_type, to_insert :: equation_type, parse :: non_neg_integer()) :: equation_type
     def insert_equation(equation, [], _parse), do: equation
     def insert_equation(equation, [head | tail]=_to_insert, parse) do
         List.insert_at(equation, parse, head)
@@ -92,7 +106,7 @@ defmodule App.Parse do
     end
 
 
-    @spec drop_equation(equation :: [charlist()], start :: integer(), final :: integer()) :: [charlist()]
+    @spec drop_equation(equation :: equation_type, start :: integer(), final :: integer()) :: equation_type
     def drop_equation(equation, index, repeat) when repeat > 0 do
         List.delete_at(equation, index)
         |> drop_equation(index, repeat - 1)
@@ -128,7 +142,7 @@ defmodule App.Parse do
                     [
                         char ++ next
                         |
-                        auto_implement(:plus, remaing, char)
+                        auto_implement(:plus, remaing, next)
                     ]
                 end
 

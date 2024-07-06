@@ -1,6 +1,7 @@
 defmodule App.Math do
+    @type equation_type :: [charlist()]
 
-    @spec resolve([charlist()]) :: [charlist()]
+    @spec resolve(equation_type) :: equation_type
     def resolve(equation) do
         result = App.Parse.auto_implement(:plus, equation, nil)
                  |> resolve_plus() 
@@ -28,7 +29,7 @@ defmodule App.Math do
     end
 
 
-    @spec resolve_multiply(equation :: [charlist()], char :: non_neg_integer()) :: [charlist()]
+    @spec resolve_multiply(equation :: equation_type, char :: non_neg_integer()) :: equation_type
     def resolve_multiply(equation, char) do
         operator = Enum.at(equation, char)
 

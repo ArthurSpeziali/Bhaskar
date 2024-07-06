@@ -3,11 +3,15 @@ defmodule App.Main do
     
     @spec main(args :: [String.t]) :: any
     def main(args) do
-        equation = format(
+        list_equation = format(
             List.first(args)
         )
-        
-        result = App.Sintax.sintax_resolver(equation)
+
+
+        {agent, result} = App.Sintax.sintax_main(list_equation, :agent)
+        result = List.last(result)
+        variables = Agent.get(agent, &(&1))
+
         case result do
 
             [term] ->
@@ -19,6 +23,10 @@ defmodule App.Main do
                     List.to_integer(term)
 
                 end |> IO.puts()
+                
+                if variables != %{} do
+                    print_variables(variables)
+                end
 
         end
 
@@ -30,6 +38,15 @@ defmodule App.Main do
            |> String.upcase
            |> String.to_charlist
            |> App.Parse.parse_start()
+    end
+
+    def print_variables(map) do
+        IO.puts("\nVariáveis:")
+
+        for {key, value} <- map do
+            [_signal, key] = key
+            IO.puts("#{[key]} -> #{value}")
+        end
     end
 end
 
