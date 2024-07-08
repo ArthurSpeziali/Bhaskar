@@ -2,6 +2,7 @@ defmodule App.Sintax do
     @dialyzer {:nowarn_function, variable_resolver: 2, variable_resolver: 3, sintax_verify: 4, sintax_main: 2, sintax_resolver: 1, bracket_finder: 2, bracket_resolver: 2, operator_resolver: 2, bracket_resolver: 1, operator_resolver: 1, equal_resolver: 2, equal_resolver: 1}
 
     @operators ['/', '*']
+    @exroot ['^']
     @type equation_type :: [charlist()]
 
     
@@ -146,6 +147,14 @@ defmodule App.Sintax do
         end
     end
 
+    defp sintax_verify(:exroot, [exp | tail], equation, count) do
+        if exp in @exroot do
+            count
+        else
+            sintax_verify(:exroot, tail, equation, count + 1)
+        end
+    end
+    
 
 
     @spec bracket_finder(charlist(), count :: integer()) :: nil
@@ -175,25 +184,20 @@ defmodule App.Sintax do
     def bracket_resolver(equation) do
         brackets = sintax_verify(:bracket_begin, equation, equation, 0)
         
-        if brackets do
-            List.flatten(equation)
-            |> Enum.filter(
-                &(&1 == ?( or &1 == ?))
-            ) |> bracket_finder(0)
+        List.flatten(equation)
+        |> Enum.filter(
+            &(&1 == ?( or &1 == ?))
+        ) |> bracket_finder(0)
 
 
-            {start, final} = brackets
-            result = Enum.slice(
-                equation,
-                start+1..final
-            ) |> App.Sintax.sintax_resolver()
+        {start, final} = brackets
+        result = Enum.slice(
+            equation,
+            start+1..final
+        ) |> App.Sintax.sintax_resolver()
 
-            App.Parse.drop_equation(equation, start, final + 2 - start)
-            |> App.Parse.insert_equation(result, start)
-        else
-            false
-        end
-
+        App.Parse.drop_equation(equation, start, final + 2 - start)
+        |> App.Parse.insert_equation(result, start)
     end
 
 
@@ -206,15 +210,10 @@ defmodule App.Sintax do
     def operator_resolver(equation) do
         operators = sintax_verify(:operator, equation, equation, 0)
 
-        if operators do
-            result = App.Math.resolve_multiply(equation, operators)
+        result = App.Math.resolve_multiply(equation, operators)
 
-            App.Parse.drop_equation(equation, operators - 1, 3)
-            |> App.Parse.insert_equation(result, operators - 1)
-        else
-            false
-        end
-
+        App.Parse.drop_equation(equation, operators - 1, 3)
+        |> App.Parse.insert_equation(result, operators - 1)
     end
 
 
@@ -227,18 +226,14 @@ defmodule App.Sintax do
     defp equal_resolver(equation) do
         equals = sintax_verify(:equal, equation, equation, 0)
         
-        if equals do
-            {left, right} = equals
+        {left, right} = equals
 
-            left_resolve = App.Sintax.sintax_resolver(left)
-            right_resolve = App.Sintax.sintax_resolver(right)
+        left_resolve = App.Sintax.sintax_resolver(left)
+        right_resolve = App.Sintax.sintax_resolver(right)
 
-            if left_resolve != right_resolve, do: raise(ArgumentError, "Igualdade não equivalente dos dois lados")
+        if left_resolve != right_resolve, do: raise(ArgumentError, "Igualdade não equivalente dos dois lados")
 
-            left_resolve
-        else
-            false
-        end
+        left_resolve
     end
 
 
@@ -284,4 +279,19 @@ defmodule App.Sintax do
         [value]
     end
 
+
+    def exroot_resolver(:bool, equation) do
+        sintax_verify(:exroot, equation, equation, 0)
+    end
+
+    def exroot_resolver(equation) do
+        exroots = sintax_verify(:exroot, equation, equation, 0)
+
+        if Enum.at(equation, exroots) == '^' do
+
+        else
+            # root_finder
+        end
+
+    end
 end

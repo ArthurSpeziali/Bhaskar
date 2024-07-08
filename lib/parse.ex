@@ -2,7 +2,7 @@ defmodule App.Parse do
     @dialyzer {:nowarn_function, parse_main: 1, agent_updater: 2, parse_case: 2}
 
     @type equation_type :: [charlist()]
-    @operations '*/=()'
+    @operations '*/=()^'
     @signals '-+'
     @variables Enum.to_list(?A..?Z)
     @numbers Enum.to_list(?0..?9)
@@ -93,6 +93,8 @@ defmodule App.Parse do
                 [operation]
 
             _operation when (char in @operations) -> []
+
+            char -> raise(ArgumentError, "Caractere inválido: #{[char]}")
         end
 
     end

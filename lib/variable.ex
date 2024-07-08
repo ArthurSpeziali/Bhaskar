@@ -68,28 +68,32 @@ defmodule App.Variable do
     @spec variable_plus(equation_type, right :: equation_type, left :: equation_type) :: equation_type
     defp variable_plus([], right, left), do: {right, left}
     defp variable_plus([exp | tail], right, left) do
-        next =
+        [next, remaing] =
             if tail != [] do
-                [next | _] = tail
-                next
+                [next | remaing] = tail
+                [next, remaing]
             else
-                []
+                [[], []]
             end
        
+        cond do
+            (exp in @operators) and (List.last(next) in @numbers) ->
+                variable_plus(remaing, right, left ++ [exp] ++ [next])
 
-        if (List.last(exp) in @numbers) and (next not in @operators) do
-           variable_plus(
-               tail,
-               App.Sintax.sintax_resolver(
-                   right
-                   ++
-                   [invert_signal(exp)]
-               ),
-               left
-           )
+            (List.last(exp) in @numbers) and (next not in @operators) ->
+                variable_plus(
+                    tail,
+                    App.Sintax.sintax_resolver(
+                       right
+                       ++
+                       [invert_signal(exp)]
+                    ),
+                    left
+                )
 
-        else
-            variable_plus(tail, right, left ++ [exp])
+
+            true ->
+                variable_plus(tail, right, left ++ [exp])
         end
 
     end
@@ -106,12 +110,19 @@ defmodule App.Variable do
                 [[], []]
             end
 
+        swap_operator = fn operator ->
+            if operator == '*' do
+                '/'
+            else
+                '*'
+            end
+        end
 
         cond do
             List.last(exp) in @numbers ->
                 variable_operator(
                     remaing,
-                    [exp, next] ++ right
+                    right ++ [swap_operator.(next), exp]
                 )
 
             
@@ -122,7 +133,7 @@ defmodule App.Variable do
             exp in @operators ->
                 variable_operator(
                     remaing,
-                    [next, exp] ++ right
+                    right ++ [swap_operator.(exp), next]
                 )
 
         end

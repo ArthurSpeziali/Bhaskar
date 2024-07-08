@@ -1,5 +1,5 @@
 defmodule App.Main do
-    def main, do: IO.puts("Falta de Argumentos.")
+    def main([]), do: IO.puts("Falta de Argumentos.")
     
     @spec main(args :: [String.t]) :: any
     def main(args) do
