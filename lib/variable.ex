@@ -1,14 +1,25 @@
 defmodule App.Variable do
-    @dialyzer {:nowarn_function, assign: 2, invert_signal: 1, swap_variable: 3, get_variable: 2, variable_plus: 3, variable_multiply: 1, variable_operator: 2}
+    @dialyzer {:nowarn_function, assign: 2, invert_signal: 1, swap_variable: 3, get_variable: 2, variable_plus: 3, variable_multiply: 1, variable_operator: 2, variable_bracket: 4}
 
-    @type equation_type :: [charlist()]
+    @type equation_type() :: [charlist()]
     @variables Enum.to_list(?A..?Z)
     @numbers Enum.to_list(?0..?9)
     @signals '-+'
     @operators ['/', '*']
 
 
-    @spec variable_multiply(equation :: equation_type) :: equation_type
+    @spec variable_bracket(char :: charlist(), left :: equation_type(), right :: charlist(), tuple()) :: equation_type()
+    defp variable_bracket(char, left, right, {start, final}) do
+        in_equation = Enum.slice(left, start + 1..final)
+        out_equation = App.Parse.drop_equation(left, start, (final - start) + 2)
+                       |> App.Parse.insert_equation(start, [char])
+
+        [result] = assign(out_equation, right)
+        assign(in_equation, result)
+    end
+
+
+    @spec variable_multiply(equation :: equation_type()) :: equation_type()
     defp variable_multiply(equation) do
         disable_operator = fn operator ->
             if operator == '/' do
@@ -33,8 +44,8 @@ defmodule App.Variable do
                 variable_multiply(
                     App.Parse.insert_equation(
                         remaing,
-                        result,
-                        operations - 1
+                        operations - 1,
+                        result
                     )
                 )
                 
@@ -43,8 +54,8 @@ defmodule App.Variable do
                 variable_multiply(
                     App.Parse.insert_equation(
                         remaing,
-                        charset,
-                        operations - 1
+                        operations - 1,
+                        charset
                     )
                 )
 
@@ -65,7 +76,7 @@ defmodule App.Variable do
     end
 
 
-    @spec variable_plus(equation_type, right :: equation_type, left :: equation_type) :: equation_type
+    @spec variable_plus(equation_type(), right :: equation_type(), left :: equation_type()) :: equation_type()
     defp variable_plus([], right, left), do: {right, left}
     defp variable_plus([exp | tail], right, left) do
         [next, remaing] =
@@ -99,7 +110,7 @@ defmodule App.Variable do
     end
 
 
-    @spec variable_operator(equation_type, right :: equation_type) :: equation_type
+    @spec variable_operator(equation_type(), right :: equation_type()) :: equation_type()
     defp variable_operator([], right), do: right
     defp variable_operator([exp | tail], right) do
         [next, remaing] =
@@ -142,7 +153,7 @@ defmodule App.Variable do
     
 
 
-    @spec assign(left :: equation_type, right :: charlist()) :: false | equation_type
+    @spec assign(left :: equation_type(), right :: charlist()) :: false | equation_type()
     def assign(left, right) do
         variables = find_variable(left, 0)
         {char, count} = variables
@@ -154,17 +165,16 @@ defmodule App.Variable do
                 {start, final} = brackets
                 operation = Enum.slice(left, start+1..final)
 
-                for item <- operation do
-                    if List.last(item) in @variables, do: raise(ArgumentError, "Não é permitido váriaveis sem valor dentro de parênteses")
+                unless Enum.all?(operation, &(List.last(&1) not in @variables)) do
+                    variable_bracket(char, left, right, {start, final})
+
+                else
+                    result = App.Sintax.bracket_resolver(left)
+                    assign(
+                        App.Parse.auto_implement(:plus, result, nil),
+                        right
+                    )
                 end
-
-                
-                result = App.Sintax.bracket_resolver(left)
-                assign(
-                    App.Parse.auto_implement(:plus, result, nil),
-                    right
-                )
-
 
             operators ->
                 left = variable_multiply(left)
@@ -208,7 +218,7 @@ defmodule App.Variable do
     end
 
 
-    @spec find_variable(equation :: equation_type, count :: pos_integer()) :: false | {charlist(), pos_integer()}
+    @spec find_variable(equation :: equation_type(), count :: pos_integer()) :: false | {charlist(), pos_integer()}
     def find_variable([], _count), do: false
 
     def find_variable([ [exp] | _], count) when exp in @variables do
@@ -235,7 +245,7 @@ defmodule App.Variable do
 
 
 
-    @spec get_variable(equation :: equation_type, agent :: Agent.agent()) :: equation_type
+    @spec get_variable(equation :: equation_type(), agent :: Agent.agent()) :: equation_type()
     def get_variable(equation, agent) do
         variables = App.Sintax.variable_resolver(:bool, equation, agent)
 
@@ -267,7 +277,7 @@ defmodule App.Variable do
     end
 
 
-    @spec swap_variable(equation_type, var :: charlist(), value :: charlist()) :: equation_type
+    @spec swap_variable(equation_type(), var :: charlist(), value :: charlist()) :: equation_type()
     defp swap_variable([], _char, _value), do: []
 
     defp swap_variable([ [exp_signal, exp_abs] | tail], [var], value) do

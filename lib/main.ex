@@ -1,7 +1,12 @@
 defmodule App.Main do
+    def debug() do
+        Mix.ensure_application!(:wx)
+        Mix.ensure_application!(:debugger)
+    end
+
     def main([]), do: IO.puts("Falta de Argumentos.")
     
-    @spec main(args :: [String.t]) :: any
+    @spec main(args :: [String.t]) :: no_return()
     def main(args) do
         list_equation = format(
             List.first(args)

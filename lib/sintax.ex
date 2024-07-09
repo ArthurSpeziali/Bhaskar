@@ -1,12 +1,12 @@
 defmodule App.Sintax do
-    @dialyzer {:nowarn_function, variable_resolver: 2, variable_resolver: 3, sintax_verify: 4, sintax_main: 2, sintax_resolver: 1, bracket_finder: 2, bracket_resolver: 2, operator_resolver: 2, bracket_resolver: 1, operator_resolver: 1, equal_resolver: 2, equal_resolver: 1}
+    @dialyzer {:nowarn_function, variable_resolver: 2, variable_resolver: 3, sintax_verify: 4, sintax_main: 2, sintax_resolver: 1, bracket_finder: 2, bracket_resolver: 2, operator_resolver: 2, bracket_resolver: 1, operator_resolver: 1, equal_resolver: 2, equal_resolver: 1, powroot_resolver: 1, powroot_resolver: 2}
 
     @operators ['/', '*']
-    @exroot ['^']
-    @type equation_type :: [charlist()]
+    @powroot ['^']
+    @type equation_type() :: [charlist()]
 
     
-    @spec sintax_main(list_equation :: [equation_type], :agent | Agent.agent()) :: [equation_type]
+    @spec sintax_main(list_equation :: [equation_type()], :agent | Agent.agent()) :: [equation_type()]
     def sintax_main(list_equation, :agent) do
         {:ok, agent} = Agent.start(fn -> %{} end)
         sintax_main(list_equation, agent)
@@ -31,7 +31,7 @@ defmodule App.Sintax do
     end
 
 
-    @spec sintax_resolver(equation :: equation_type) :: equation_type
+    @spec sintax_resolver(equation :: equation_type()) :: equation_type()
     def sintax_resolver(equation) do
         cond do
             variable_resolver(:bool, equation, nil) ->
@@ -44,7 +44,12 @@ defmodule App.Sintax do
                 sintax_resolver(
                     bracket_resolver(equation)
                 )
-            
+
+            powroot_resolver(:bool, equation) ->
+                sintax_resolver(
+                    powroot_resolver(equation)
+                )
+
             operator_resolver(:bool, equation) ->
                 sintax_resolver(
                     operator_resolver(equation)
@@ -57,7 +62,7 @@ defmodule App.Sintax do
     end
 
     
-    @spec sintax_verify(atom(), equation_type, equation :: equation_type, count :: non_neg_integer()) :: any()
+    @spec sintax_verify(atom(), equation_type(), equation :: equation_type(), count :: non_neg_integer()) :: any()
     defp sintax_verify(:bracket_pair, [], _equation, count), do: count - 2
     defp sintax_verify(_atom, [], _equation, _count), do: false
 
@@ -147,11 +152,11 @@ defmodule App.Sintax do
         end
     end
 
-    defp sintax_verify(:exroot, [exp | tail], equation, count) do
-        if exp in @exroot do
+    defp sintax_verify(:powroot, [exp | tail], equation, count) do
+        if exp in @powroot do
             count
         else
-            sintax_verify(:exroot, tail, equation, count + 1)
+            sintax_verify(:powroot, tail, equation, count + 1)
         end
     end
     
@@ -175,12 +180,12 @@ defmodule App.Sintax do
     defp bracket_finder(_equation, _count), do: raise(ArgumentError, "Parenteses inválidos")
 
 
-    @spec bracket_resolver(:bool, equation :: equation_type) :: false | any()
+    @spec bracket_resolver(:bool, equation :: equation_type()) :: false | any()
     def bracket_resolver(:bool, equation) do
         sintax_verify(:bracket_begin, equation, equation, 0)
     end
 
-    @spec bracket_resolver(equation :: equation_type) :: equation_type
+    @spec bracket_resolver(equation :: equation_type()) :: equation_type()
     def bracket_resolver(equation) do
         brackets = sintax_verify(:bracket_begin, equation, equation, 0)
         
@@ -197,32 +202,32 @@ defmodule App.Sintax do
         ) |> App.Sintax.sintax_resolver()
 
         App.Parse.drop_equation(equation, start, final + 2 - start)
-        |> App.Parse.insert_equation(result, start)
+        |> App.Parse.insert_equation(start, result)
     end
 
 
-    @spec operator_resolver(:bool, equation :: equation_type) :: false | any()
+    @spec operator_resolver(:bool, equation :: equation_type()) :: false | any()
     def operator_resolver(:bool, equation) do
         sintax_verify(:operator, equation, equation, 0)
     end
     
-    @spec operator_resolver(equation :: equation_type) :: equation_type | false
+    @spec operator_resolver(equation :: equation_type()) :: equation_type() | false
     def operator_resolver(equation) do
         operators = sintax_verify(:operator, equation, equation, 0)
 
         result = App.Math.resolve_multiply(equation, operators)
 
         App.Parse.drop_equation(equation, operators - 1, 3)
-        |> App.Parse.insert_equation(result, operators - 1)
+        |> App.Parse.insert_equation(operators - 1, result)
     end
 
 
-    @spec equal_resolver(:bool, equation :: equation_type) :: false | any()
+    @spec equal_resolver(:bool, equation :: equation_type()) :: false | any()
     defp equal_resolver(:bool, equation) do
         sintax_verify(:equal, equation, equation, 0)
     end
 
-    @spec equal_resolver(equation :: equation_type) :: any()
+    @spec equal_resolver(equation :: equation_type()) :: any()
     defp equal_resolver(equation) do
         equals = sintax_verify(:equal, equation, equation, 0)
         
@@ -237,12 +242,12 @@ defmodule App.Sintax do
     end
 
 
-    @spec variable_resolver(:bool, equation :: equation_type, agent :: Agent.agent()) :: false | any()
+    @spec variable_resolver(:bool, equation :: equation_type(), agent :: Agent.agent()) :: false | any()
     def variable_resolver(:bool, equation, _agent) do
         App.Variable.find_variable(equation, 0)
     end
 
-    @spec variable_resolver(equation :: equation_type, agent :: Agent.agent()) :: equation_type
+    @spec variable_resolver(equation :: equation_type(), agent :: Agent.agent()) :: equation_type()
     def variable_resolver(equation, agent) do
         variables = App.Variable.find_variable(equation, 0)
 
@@ -280,14 +285,27 @@ defmodule App.Sintax do
     end
 
 
-    def exroot_resolver(:bool, equation) do
-        sintax_verify(:exroot, equation, equation, 0)
+    @spec powroot_resolver(:bool, powroot_resolver :: equation_type()) :: equation_type()
+    defp powroot_resolver(:bool, equation) do
+        sintax_verify(:powroot, equation, equation, 0)
     end
 
-    def exroot_resolver(equation) do
-        exroots = sintax_verify(:exroot, equation, equation, 0)
+    @spec powroot_resolver(equation :: equation_type()) :: equation_type()
+    defp powroot_resolver(equation) do
+        powroots = sintax_verify(:powroot, equation, equation, 0)
 
-        if Enum.at(equation, exroots) == '^' do
+        if Enum.at(equation, powroots) == '^' do
+            previous = App.Math.to_number(
+                Enum.at(equation, powroots - 1)
+            )
+
+            next = App.Math.to_number(
+                Enum.at(equation, powroots + 1)
+            )
+            result = [App.Math.to_charlist(previous ** next)]
+
+            App.Parse.drop_equation(equation, powroots - 1, 3)
+            |> App.Parse.insert_equation(powroots - 1, result)
 
         else
             # root_finder

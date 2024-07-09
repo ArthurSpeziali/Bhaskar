@@ -1,14 +1,14 @@
 defmodule App.Parse do
     @dialyzer {:nowarn_function, parse_main: 1, agent_updater: 2, parse_case: 2}
 
-    @type equation_type :: [charlist()]
+    @type equation_type() :: [charlist()]
     @operations '*/=()^'
     @signals '-+'
     @variables Enum.to_list(?A..?Z)
     @numbers Enum.to_list(?0..?9)
 
 
-    @spec parse_start(charlist :: charlist()) :: [equation_type]
+    @spec parse_start(charlist :: charlist()) :: [equation_type()]
     def parse_start(char_list) do
         equation_list = List.to_string(char_list)
                         |> String.split(";")
@@ -22,7 +22,7 @@ defmodule App.Parse do
     end
 
     
-    @spec parse_main(char_list :: charlist()) :: equation_type
+    @spec parse_main(char_list :: charlist()) :: equation_type()
     defp parse_main(char_list) do 
         char_list = auto_implement(:multiply, char_list, nil)
                     |> variable_implement(nil)
@@ -55,7 +55,7 @@ defmodule App.Parse do
     end
 
 
-    @spec parse_case(charlist(), last :: charlist() | char() | nil) :: equation_type
+    @spec parse_case(charlist(), last :: charlist() | char() | nil) :: equation_type()
     defp parse_case([], _last), do: []
     defp parse_case([char | tail], last) do
 
@@ -100,15 +100,15 @@ defmodule App.Parse do
     end
 
 
-    @spec insert_equation(equation :: equation_type, to_insert :: equation_type, parse :: non_neg_integer()) :: equation_type
-    def insert_equation(equation, [], _parse), do: equation
-    def insert_equation(equation, [head | tail]=_to_insert, parse) do
+    @spec insert_equation(equation :: equation_type(), parse :: pos_integer(), to_insert :: equation_type()) :: equation_type()
+    def insert_equation(equation, _parse, []), do: equation
+    def insert_equation(equation, parse, [head | tail]=_to_insert) do
         List.insert_at(equation, parse, head)
-        |> insert_equation(tail, parse + 1)
+        |> insert_equation(parse + 1, tail)
     end
 
 
-    @spec drop_equation(equation :: equation_type, start :: integer(), final :: integer()) :: equation_type
+    @spec drop_equation(equation :: equation_type(), start :: pos_integer(), final :: pos_integer()) :: equation_type()
     def drop_equation(equation, index, repeat) when repeat > 0 do
         List.delete_at(equation, index)
         |> drop_equation(index, repeat - 1)

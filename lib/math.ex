@@ -1,7 +1,7 @@
 defmodule App.Math do
-    @type equation_type :: [charlist()]
+    @type equation_type() :: [charlist()]
 
-    @spec resolve(equation_type) :: equation_type
+    @spec resolve(equation_type()) :: equation_type
     def resolve(equation) do
         result = App.Parse.auto_implement(:plus, equation, nil)
                  |> resolve_plus() 
@@ -29,24 +29,15 @@ defmodule App.Math do
     end
 
 
-    @spec resolve_multiply(equation :: equation_type, char :: non_neg_integer()) :: equation_type
+    @spec resolve_multiply(equation :: equation_type(), char :: non_neg_integer()) :: equation_type
     def resolve_multiply(equation, char) do
         operator = Enum.at(equation, char)
 
         previous = Enum.at(equation, char - 1)
-        previous = if ?. in previous do
-            List.to_float(previous)
-        else
-            List.to_integer(previous)
-        end
-        
-        next = Enum.at(equation, char + 1)
-        next = if ?. in next do
-            List.to_float(next)
-        else
-            List.to_integer(next)
-        end
+        previous = to_number(previous)
 
+        next = Enum.at(equation, char + 1)
+        next = to_number(next)
 
         result = case operator do
             '*' ->
@@ -77,4 +68,24 @@ defmodule App.Math do
         end
 
     end
+
+    
+    @spec to_number(exp :: charlist()) :: integer() | float()
+    def to_number(exp) do
+        if ?. in exp do
+            List.to_float(exp)
+        else
+            List.to_integer(exp)
+        end
+    end
+
+    @spec to_charlist(number :: integer() | float()) :: charlist()
+    def to_charlist(number) do
+        if is_integer(number) do
+            Integer.to_charlist(number)
+        else
+            Float.to_charlist(number)
+        end
+    end
+
 end
