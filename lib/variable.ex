@@ -1,11 +1,70 @@
 defmodule App.Variable do
-    @dialyzer {:nowarn_function, assign: 2, invert_signal: 1, swap_variable: 3, get_variable: 2, variable_plus: 3, variable_multiply: 1, variable_operator: 3, variable_bracket: 4}
+    @dialyzer {:nowarn_function, assign: 2, invert_signal: 1, swap_variable: 3, get_variable: 2, variable_plus: 3, variable_multiply: 1, variable_operator: 3, variable_bracket: 4, powroot_variable: 3, variable_pow: 2}
 
     @type equation_type() :: [charlist()]
     @variables Enum.to_list(?A..?Z)
     @numbers Enum.to_list(?0..?9)
     @signals ~c"-+"
     @operators [~c"/", ~c"*"]
+
+
+    @spec variable_pow(equation :: equation_type(), char :: charlist()) :: equation_type()
+    defp variable_pow(equation, char) do
+        pow = Enum.find_index(equation, fn item ->
+            item == ~c"^"
+        end)
+
+        if pow do
+            next = Enum.at(equation, pow+1)
+            previous = Enum.at(equation, pow-1)
+
+            if previous != char && next != char do
+
+                result = App.Sintax.powroot_resolver(
+                    [previous] ++ [~c"^"] ++ [next]
+                )
+
+                App.Parse.drop_equation(equation, pow - 1, 3)
+                |> App.Parse.insert_equation(pow - 1, result)
+                |> variable_pow(char)
+
+            else
+                List.replace_at(equation, pow, ~c"p")
+                |> variable_pow(char)
+            end
+
+        else
+
+            Enum.map(equation, fn item ->
+                if item == ~c"p" do
+                    ~c"^"
+                else
+                    item
+                end
+            end)
+
+        end
+    end
+
+
+    @spec powroot_variable(left :: equation_type(), right :: equation_type(), char :: charlist()) :: equation_type()
+    defp powroot_variable(left, right, char) do
+        {powroots, count, _value} = App.Sintax.powroot_resolver(:bool, left)
+
+        if powroots == :pow do
+            next = Enum.at(left, count+1)
+
+            if next == char, do: raise(ArgumentError, "Váriaveis não podem ser indices ou expoentes, precisa-se do logarítimo antes")
+
+
+            [right] = [~c"<" ++ next ++ ~c">{"] ++ [right] ++ [~c"}"] 
+                    |> App.Sintax.sintax_resolver()
+
+            left = App.Parse.drop_equation(left, count, 2)
+            assign(left, right)
+
+        end
+    end
 
 
     @spec variable_bracket(char :: charlist(), left :: equation_type(), right :: charlist(), tuple()) :: equation_type()
@@ -136,7 +195,13 @@ defmodule App.Variable do
 
             List.last(exp) in @numbers ->
                 right = unless more? do
-                     [exp, next] ++ right
+                    
+                    if next == ~c"/" do
+                        [exp, next] ++ right
+                    else
+                        right ++ [swap_operator.(next), exp]
+                    end
+
                 else
                     right ++ [next, exp]
                 end
@@ -178,13 +243,14 @@ defmodule App.Variable do
         {char, count} = variables
         operators = App.Sintax.operator_resolver(:bool, left)
         brackets = App.Sintax.bracket_resolver(:bool, left)
+        powroots = App.Sintax.powroot_resolver(:bool, left)
 
         cond do
              brackets ->
                 {start, final} = brackets
                 operation = Enum.slice(left, start+1..final//1)
 
-                unless Enum.all?(operation, &(List.last(&1) not in @variables)) do
+                if not(Enum.all?(operation, &(List.last(&1) not in @variables))) do
                     variable_bracket(char, left, right, {start, final})
 
                 else
@@ -196,6 +262,27 @@ defmodule App.Variable do
                     )
                 end
 
+
+            powroots ->
+                {powroots, count, _value} = powroots
+                left = variable_pow(left, char)
+
+                if powroots == :pow do
+
+                    charset = [
+                        Enum.at(left, count - 1),
+                        ~c"^",
+                        Enum.at(left, count + 1)
+                    ]
+
+                    operation = left -- charset
+                                |> App.Parse.insert_equation(count - 1, [char])
+
+                    [right] = assign(operation, right) 
+                    powroot_variable(charset, right, char)
+                end
+
+
             operators ->
                 left = variable_multiply(left)
                 {right, left} = variable_plus(left, [right], [])
@@ -204,7 +291,6 @@ defmodule App.Variable do
                 [operation] = variable_operator(left, right, more?)
                               |> App.Sintax.sintax_resolver()
     
-
                 if List.first(char) == ?- do
                     [invert_signal(operation)]
                 else

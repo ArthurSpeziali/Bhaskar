@@ -65,6 +65,10 @@ defmodule App.Parse do
 
             _float when (char == ?.) -> raise(ArgumentError, "Decimal inválido")
 
+            _signal when (char == ?<) and (last in @signals) -> []
+
+            index when (char == ?>) and (last in @numbers) ->
+                [index | parse_case(tail, char)]
 
             _number when (char not in @numbers) and (last in @numbers) -> []
             _variable when (char not in @variables) and (last in @variables) -> []
@@ -93,6 +97,20 @@ defmodule App.Parse do
                 [operation]
 
             _operation when (char in @operations) -> []
+
+            index when (char == ?<) and (last != ?< and last != ?>) ->
+                [index | parse_case(tail, char)]
+
+            _index when (char == ?>) and (last in @variables) -> raise(ArgumentError, "Não é permitido váriaveis em índice")
+
+            _index when (char == ?<) or (char == ?>) -> raise(ArgumentError, "Índice inválido")
+
+
+            root when (char == ?{ and last == ?>) or (char == ?}) ->
+                [root]
+
+            _root when (char == ?{) or (char == ?}) -> raise(ArgumentError, "Raiz sem indíce")
+
 
             char -> raise(ArgumentError, "Caractere inválido: #{[char]}")
         end
@@ -194,6 +212,25 @@ defmodule App.Parse do
     end
     defp variable_signal([exp | tail]) do
         [exp | variable_signal(tail)]
+    end
+
+
+    @spec index_find(equation_type(), count :: pos_integer()) :: false | pos_integer()
+    def index_find([], _count), do: false
+
+    def index_find([exp | tail], count) do
+        cond do
+            (?< in exp) && (?> in exp) && (List.last(exp) not in ~c"<>")-> 
+                count
+    
+
+            (?< in exp) || (?> in exp) -> 
+                raise(ArgumentError, "Índice inválido")
+
+
+            true ->
+                index_find(tail, count + 1)
+        end
     end
 
 end

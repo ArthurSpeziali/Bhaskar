@@ -89,4 +89,13 @@ defmodule App.Math do
         end
     end
 
+
+    @spec root(value :: pos_integer(), index :: non_neg_integer()) :: float()
+    def root(_value, index) when index < 2, do: raise(ArgumentError, "Índice da raiz precisa ser maior ou igual a 2")
+    def root(value, _index) when value < 0, do: raise(ArgumentError, "Valor de dentro da raiz precisa ser positivo")
+    
+    def root(value, index) do
+        Float.round(value ** (1 / index), @houses)
+    end
+
 end

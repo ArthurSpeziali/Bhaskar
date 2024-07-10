@@ -1,8 +1,7 @@
 defmodule App.Sintax do
-    @dialyzer {:nowarn_function, variable_resolver: 2, variable_resolver: 3, sintax_verify: 4, sintax_main: 2, sintax_resolver: 1, bracket_finder: 2, bracket_resolver: 2, operator_resolver: 2, bracket_resolver: 1, operator_resolver: 1, equal_resolver: 2, equal_resolver: 1, powroot_resolver: 1, powroot_resolver: 2}
+    @dialyzer {:nowarn_function, variable_resolver: 2, variable_resolver: 3, sintax_verify: 4, sintax_main: 2, sintax_resolver: 1, bracket_finder: 2, bracket_resolver: 2, operator_resolver: 2, bracket_resolver: 1, operator_resolver: 1, equal_resolver: 2, equal_resolver: 1, powroot_resolver: 1, powroot_resolver: 2, extract_index: 1}
 
     @operators [~c"/", ~c"*"]
-    @powroot [~c"^"]
     @type equation_type() :: [charlist()]
 
     
@@ -127,23 +126,23 @@ defmodule App.Sintax do
     end
 
     defp sintax_verify(:equal, [exp | tail], _equation, _count) do
-        index_value = Enum.find_index(
+        equal_value = Enum.find_index(
             [exp | tail],
             &(&1 == ~c"=")
         )
 
-        if index_value do
+        if equal_value do
             frequencies = Enum.frequencies([exp | tail])
             if frequencies[~c"="] > 1, do: raise(ArgumentError, "Mais de um sinal de igual")
 
 
             left = Enum.slice(
                 [exp | tail],
-                0..index_value - 1//1
+                0..equal_value - 1//1
             )
             right = Enum.slice(
                 [exp | tail],
-                index_value + 1..-1//1
+                equal_value + 1..-1//1
             )
 
             {left, right}
@@ -152,12 +151,43 @@ defmodule App.Sintax do
         end
     end
 
-    defp sintax_verify(:powroot, [exp | tail], equation, count) do
-        if exp in @powroot do
-            count
+    defp sintax_verify(:powroot, equation, _equation, _count) do
+        pow = Enum.find_index(equation, fn item ->
+            item == ~c"^"
+        end)
+
+        index = App.Parse.index_find(equation, 0)
+
+        {root, value} = 
+            if index do
+                {func, value} = extract_index(
+                    Enum.at(equation, index)
+                )    
+
+                if func == ?{ do
+                    {index, value}
+                else
+                    {nil, nil}
+                end
+
         else
-            sintax_verify(:powroot, tail, equation, count + 1)
+            {nil, nil}
         end
+
+
+        case {pow, root} do
+            {nil, nil} -> false
+            {_, nil} -> {:pow, pow, value}
+            {nil, _} -> {:root, root, value}
+
+            {_, _} ->
+                if pow < root do
+                    {:pow, pow, value}
+                else
+                    {:root, root, value}
+                end
+        end
+
     end
     
 
@@ -286,30 +316,57 @@ defmodule App.Sintax do
 
 
     @spec powroot_resolver(:bool, powroot_resolver :: equation_type()) :: equation_type()
-    defp powroot_resolver(:bool, equation) do
+    def powroot_resolver(:bool, equation) do
         sintax_verify(:powroot, equation, equation, 0)
     end
 
     @spec powroot_resolver(equation :: equation_type()) :: equation_type()
-    defp powroot_resolver(equation) do
-        powroots = sintax_verify(:powroot, equation, equation, 0)
+    def powroot_resolver(equation) do
+        {powroots, count, value} = sintax_verify(:powroot, equation, equation, 0)
 
-        if Enum.at(equation, powroots) == ~c"^" do
+        if powroots == :pow do
             previous = App.Math.to_number(
-                Enum.at(equation, powroots - 1)
+                Enum.at(equation, count - 1)
             )
 
             next = App.Math.to_number(
-                Enum.at(equation, powroots + 1)
+                Enum.at(equation, count + 1)
             )
             result = [App.Math.to_charlist(previous ** next)]
 
-            App.Parse.drop_equation(equation, powroots - 1, 3)
-            |> App.Parse.insert_equation(powroots - 1, result)
+            App.Parse.drop_equation(equation, count - 1, 3)
+            |> App.Parse.insert_equation(count - 1, result)
+
 
         else
-            # root_finder
-        end
+            final = Enum.find_index(equation, fn item ->
+                item == ~c"}"
+            end)
+            if final == nil, do: raise(ArgumentError, "Fim da raiz não encontrada")
 
+            [operation] = Enum.slice(equation, count + 1..final - 1//1)
+                     |> sintax_resolver()
+
+            result = App.Math.to_number(operation)
+                     |> App.Math.root(
+                            App.Math.to_number(value)
+                     ) |> App.Math.to_charlist()
+
+            App.Parse.drop_equation(
+                equation,
+                count,
+                final - (count - 1)
+            ) |> App.Parse.insert_equation(count, [result]) 
+
+        end
+    end
+
+
+    @spec extract_index(index :: charlist) :: tuple()
+    defp extract_index(index) do
+        func = List.last(index)
+        value = Enum.slice(index, 1..-3//1)
+        
+        {func, value}
     end
 end

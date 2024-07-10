@@ -43,4 +43,15 @@ defmodule AppTest do
 
 		assert Agent.get(agent, &(&1))[~c"+X"] == [~c"3.0"]
 	end
+
+	@tag :var_power
+	test "Utiliza exponenciação em variáveis" do
+		{:ok, agent} = Agent.start(fn -> %{} end)
+
+		App.Parse.parse_start(~c"2*X^3-8=120")
+		|> List.first()
+		|> App.Sintax.variable_resolver(agent)
+
+		assert Agent.get(agent, &(&1))[~c"+X"] == [~c"+4.0"]
+	end
 end
