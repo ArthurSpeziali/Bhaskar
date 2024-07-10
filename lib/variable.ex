@@ -1,18 +1,21 @@
 defmodule App.Variable do
-    @dialyzer {:nowarn_function, assign: 2, invert_signal: 1, swap_variable: 3, get_variable: 2, variable_plus: 3, variable_multiply: 1, variable_operator: 2, variable_bracket: 4}
+    @dialyzer {:nowarn_function, assign: 2, invert_signal: 1, swap_variable: 3, get_variable: 2, variable_plus: 3, variable_multiply: 1, variable_operator: 3, variable_bracket: 4}
 
     @type equation_type() :: [charlist()]
     @variables Enum.to_list(?A..?Z)
     @numbers Enum.to_list(?0..?9)
-    @signals '-+'
-    @operators ['/', '*']
+    @signals ~c"-+"
+    @operators [~c"/", ~c"*"]
 
 
     @spec variable_bracket(char :: charlist(), left :: equation_type(), right :: charlist(), tuple()) :: equation_type()
     defp variable_bracket(char, left, right, {start, final}) do
-        in_equation = Enum.slice(left, start + 1..final)
+        in_equation = Enum.slice(left, start + 1..final//1)
         out_equation = App.Parse.drop_equation(left, start, (final - start) + 2)
                        |> App.Parse.insert_equation(start, [char])
+        
+        out_equation = App.Parse.auto_implement(:plus, out_equation, nil)
+    
 
         [result] = assign(out_equation, right)
         assign(in_equation, result)
@@ -22,10 +25,10 @@ defmodule App.Variable do
     @spec variable_multiply(equation :: equation_type()) :: equation_type()
     defp variable_multiply(equation) do
         disable_operator = fn operator ->
-            if operator == '/' do
-                'd'
+            if operator == ~c"/" do
+                ~c"d"
             else
-                'm'
+                ~c"m"
             end
         end
 
@@ -65,8 +68,8 @@ defmodule App.Variable do
 
             Enum.map(equation, fn exp ->
                 case exp do
-                    'd' -> '/'
-                    'm' -> '*'
+                    ~c"d" -> ~c"/"
+                    ~c"m" -> ~c"*"
                     _ -> exp
                 end
             end)
@@ -110,9 +113,9 @@ defmodule App.Variable do
     end
 
 
-    @spec variable_operator(equation_type(), right :: equation_type()) :: equation_type()
-    defp variable_operator([], right), do: right
-    defp variable_operator([exp | tail], right) do
+    @spec variable_operator(equation_type(), right :: equation_type(), more? :: boolean()) :: equation_type()
+    defp variable_operator([], right, _more?), do: right
+    defp variable_operator([exp | tail], right, more?) do
         [next, remaing] =
             if tail != [] do
                 [next | remaing] = tail
@@ -122,29 +125,45 @@ defmodule App.Variable do
             end
 
         swap_operator = fn operator ->
-            if operator == '*' do
-                '/'
+            if operator == ~c"*" do
+                ~c"/"
             else
-                '*'
+                ~c"*"
             end
         end
 
         cond do
+
             List.last(exp) in @numbers ->
+                right = unless more? do
+                     [exp, next] ++ right
+                else
+                    right ++ [next, exp]
+                end
+
                 variable_operator(
                     remaing,
-                    right ++ [swap_operator.(next), exp]
+                    right,
+                    more?
                 )
 
             
             List.last(exp) in @variables ->
-                variable_operator(tail, right)
+                variable_operator(tail, right, more?)
 
 
             exp in @operators ->
+                right = unless more? do
+                    right ++ [swap_operator.(exp), next]
+                else
+                    right ++ [exp, next]
+                end
+
+
                 variable_operator(
                     remaing,
-                    right ++ [swap_operator.(exp), next]
+                    right,
+                    more?
                 )
 
         end
@@ -163,13 +182,14 @@ defmodule App.Variable do
         cond do
              brackets ->
                 {start, final} = brackets
-                operation = Enum.slice(left, start+1..final)
+                operation = Enum.slice(left, start+1..final//1)
 
                 unless Enum.all?(operation, &(List.last(&1) not in @variables)) do
                     variable_bracket(char, left, right, {start, final})
 
                 else
                     result = App.Sintax.bracket_resolver(left)
+
                     assign(
                         App.Parse.auto_implement(:plus, result, nil),
                         right
@@ -180,7 +200,8 @@ defmodule App.Variable do
                 left = variable_multiply(left)
                 {right, left} = variable_plus(left, [right], [])
 
-                [operation] = variable_operator(left, right)
+                more? = more_operator?(left)
+                [operation] = variable_operator(left, right, more?)
                               |> App.Sintax.sintax_resolver()
     
 
@@ -194,9 +215,9 @@ defmodule App.Variable do
             variables ->
                 char = invert_signal(char)
 
-                calculate = App.Parse.drop_equation(left, count, 1)
+                calculate = [invert_signal(right)]
                     ++
-                    [invert_signal(right)]
+                    App.Parse.drop_equation(left, count, 1)
 
 
                 if List.first(char) == ?- do
@@ -221,9 +242,6 @@ defmodule App.Variable do
     @spec find_variable(equation :: equation_type(), count :: pos_integer()) :: false | {charlist(), pos_integer()}
     def find_variable([], _count), do: false
 
-    def find_variable([ [exp] | _], count) when exp in @variables do
-        {[?+, exp], count}
-    end
     def find_variable([ [signal, exp] | _], count) when (signal in @signals) and (exp in @variables) do
         {[signal, exp], count}
     end
@@ -233,13 +251,13 @@ defmodule App.Variable do
 
 
     @spec invert_signal(exp :: charlist()) :: charlist()
-    defp invert_signal(exp) do
+    def invert_signal(exp) do
         signal = List.first(exp)
 
         if signal == ?- do
-            '+' ++ (exp -- '-')
+            ~c"+" ++ (exp -- ~c"-")
         else
-            '-' ++ (exp -- '+')
+            ~c"-" ++ (exp -- ~c"+")
         end
     end
 
@@ -304,4 +322,20 @@ defmodule App.Variable do
     defp swap_variable([exp | tail], var, value) do
         [exp | swap_variable(tail, var, value)]
     end
+
+
+    @spec more_operator?(equation :: equation_type()) :: boolean()
+    def more_operator?(equation) do
+        result = List.delete_at(
+            equation,
+            App.Sintax.operator_resolver(:bool, equation)
+        )
+
+        if App.Sintax.operator_resolver(:bool, result) do
+            true
+        else
+            false
+        end
+    end
+
 end

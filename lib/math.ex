@@ -1,4 +1,5 @@
 defmodule App.Math do
+    @houses 8
     @type equation_type() :: [charlist()]
 
     @spec resolve(equation_type()) :: equation_type
@@ -8,7 +9,7 @@ defmodule App.Math do
 
         if is_float(result) do
             [
-                Float.round(result, 8)
+                Float.round(result, @houses)
                 |> Float.to_charlist()
             ]
         else
@@ -40,20 +41,20 @@ defmodule App.Math do
         next = to_number(next)
 
         result = case operator do
-            '*' ->
+            ~c"*" ->
                 if is_float(previous * next) do
                     Float.round(
                         previous * next, 
-                        8
+                        @houses
                     )
                 else
                     previous * next
                 end
 
-            '/' -> 
+            ~c"/" -> 
                 Float.round(
                     previous / next,
-                    8
+                    @houses
                 )
         end
 

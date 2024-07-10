@@ -48,9 +48,11 @@ defmodule App.Main do
     def print_variables(map) do
         IO.puts("\nVariáveis:")
 
-        for {key, value} <- map do
+        for {key, [value]} <- map do
             [_signal, key] = key
-            IO.puts("#{[key]} -> #{value}")
+            value = App.Math.to_number(value) / 1
+
+            IO.puts("#{[key]} -> #{Float.round(value, 2)}")
         end
     end
 end

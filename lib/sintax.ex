@@ -1,8 +1,8 @@
 defmodule App.Sintax do
     @dialyzer {:nowarn_function, variable_resolver: 2, variable_resolver: 3, sintax_verify: 4, sintax_main: 2, sintax_resolver: 1, bracket_finder: 2, bracket_resolver: 2, operator_resolver: 2, bracket_resolver: 1, operator_resolver: 1, equal_resolver: 2, equal_resolver: 1, powroot_resolver: 1, powroot_resolver: 2}
 
-    @operators ['/', '*']
-    @powroot ['^']
+    @operators [~c"/", ~c"*"]
+    @powroot [~c"^"]
     @type equation_type() :: [charlist()]
 
     
@@ -67,7 +67,7 @@ defmodule App.Sintax do
     defp sintax_verify(_atom, [], _equation, _count), do: false
 
     defp sintax_verify(:bracket_begin, [exp | tail], equation, count) do
-        if exp == '(' do
+        if exp == ~c"(" do
 
             bracket_end = sintax_verify(:bracket_end, tail, equation, count + 1)
             if bracket_end do
@@ -84,10 +84,10 @@ defmodule App.Sintax do
     defp sintax_verify(:bracket_end, [exp | tail], equation, count) do
 
         cond do
-            exp == ')' -> 
+            exp == ~c")" -> 
                 count - 1
 
-            exp == '(' ->
+            exp == ~c"(" ->
                 sintax_verify(:bracket_pair, tail, equation, count + 1)
                 
             true ->
@@ -99,7 +99,7 @@ defmodule App.Sintax do
     defp sintax_verify(:bracket_pair, [exp | tail], equation, count) do
         index_value = Enum.find_index(
             [exp | tail],
-            &(&1 == ')')
+            &(&1 == ~c")")
         )
 
         if index_value do
@@ -129,21 +129,21 @@ defmodule App.Sintax do
     defp sintax_verify(:equal, [exp | tail], _equation, _count) do
         index_value = Enum.find_index(
             [exp | tail],
-            &(&1 == '=')
+            &(&1 == ~c"=")
         )
 
         if index_value do
             frequencies = Enum.frequencies([exp | tail])
-            if frequencies['='] > 1, do: raise(ArgumentError, "Mais de um sinal de igual")
+            if frequencies[~c"="] > 1, do: raise(ArgumentError, "Mais de um sinal de igual")
 
 
             left = Enum.slice(
                 [exp | tail],
-                0..index_value - 1
+                0..index_value - 1//1
             )
             right = Enum.slice(
                 [exp | tail],
-                index_value + 1..-1
+                index_value + 1..-1//1
             )
 
             {left, right}
@@ -198,7 +198,7 @@ defmodule App.Sintax do
         {start, final} = brackets
         result = Enum.slice(
             equation,
-            start+1..final
+            start+1..final//1
         ) |> App.Sintax.sintax_resolver()
 
         App.Parse.drop_equation(equation, start, final + 2 - start)
@@ -294,7 +294,7 @@ defmodule App.Sintax do
     defp powroot_resolver(equation) do
         powroots = sintax_verify(:powroot, equation, equation, 0)
 
-        if Enum.at(equation, powroots) == '^' do
+        if Enum.at(equation, powroots) == ~c"^" do
             previous = App.Math.to_number(
                 Enum.at(equation, powroots - 1)
             )

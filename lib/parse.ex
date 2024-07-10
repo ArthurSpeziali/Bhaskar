@@ -1,9 +1,9 @@
 defmodule App.Parse do
-    @dialyzer {:nowarn_function, parse_main: 1, agent_updater: 2, parse_case: 2}
+    @dialyzer {:nowarn_function, parse_main: 1, agent_updater: 2, parse_case: 2, variable_signal: 1, parse_start: 1, auto_implement: 3}
 
     @type equation_type() :: [charlist()]
-    @operations '*/=()^'
-    @signals '-+'
+    @operations ~c"*/=()^"
+    @signals ~c"-+"
     @variables Enum.to_list(?A..?Z)
     @numbers Enum.to_list(?0..?9)
 
@@ -133,25 +133,31 @@ defmodule App.Parse do
     end
 
     def auto_implement(:plus, [char | tail], last) do
-        
         cond do
-            char == '-' || char == '+' ->
-                [next | remaing] = tail
+            char == ~c"-" || char == ~c"+" ->
+                auto_implement(:plus, tail, char)
 
-                if List.first(next) == ?- do
-                    auto_implement(:plus, tail, char)
+
+            last == ~c"-" ->
+
+                char = App.Variable.invert_signal(char)
+                     |> App.Variable.invert_signal()
+
+                [signal, abs] = 
+                    case char do
+                        [signal | abs] -> [signal, abs]
+
+                        char -> [?+, List.first(char)]
+                    end
+
+                signal = if signal == ?- do
+                    ?+
                 else
-                    [
-                        char ++ next
-                        |
-                        auto_implement(:plus, remaing, next)
-                    ]
+                    ?-
                 end
 
-            last == '-' ->
-                [?- | exp] = char
-                [exp]
-            
+                [[signal | abs] | auto_implement(:plus, tail, char)]
+
 
             true ->
                 [char | auto_implement(:plus, tail, char)]
@@ -189,4 +195,5 @@ defmodule App.Parse do
     defp variable_signal([exp | tail]) do
         [exp | variable_signal(tail)]
     end
+
 end
