@@ -156,6 +156,10 @@ defmodule App.Parse do
                 auto_implement(:plus, tail, char)
 
 
+            last == ~c"-" && (char == ~c"(" || List.first(char) == ?<) ->
+                    [[?-] | [char | auto_implement(:plus, tail, char)]]
+
+
             last == ~c"-" ->
 
                 char = App.Variable.invert_signal(char)

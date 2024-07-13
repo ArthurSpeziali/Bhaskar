@@ -1,5 +1,5 @@
 defmodule App.Variable do
-    @dialyzer {:nowarn_function, assign: 2, invert_signal: 1, swap_variable: 3, get_variable: 2, variable_plus: 3, variable_multiply: 1, variable_operator: 3, variable_bracket: 4, powroot_variable: 3, variable_pow: 2}
+    @dialyzer {:nowarn_function, assign: 2, invert_signal: 1, swap_variable: 3, get_variable: 2, variable_plus: 3, variable_multiply: 1, variable_operator: 2, variable_bracket: 4, powroot_variable: 2, variable_pow: 2, variable_root: 2}
 
     @type equation_type() :: [charlist()]
     @variables Enum.to_list(?A..?Z)
@@ -7,6 +7,66 @@ defmodule App.Variable do
     @signals ~c"-+"
     @operators [~c"/", ~c"*"]
 
+
+    @spec variable_root(equation :: equation_type(), char :: charlist()) :: equation_type()
+    defp variable_root(equation, char) do
+        root = Enum.find_index(equation, fn item -> 
+            case item do
+                [?r, _index, ?>, ?{] -> false
+                [?r, _signal, _index, ?>, ?{] -> false
+
+                [?<, _index, ?>, ?{] -> true
+                [?<, _signal, _index, ?>, ?{] -> true
+                _ -> false
+            end
+        end)
+        final = Enum.find_index(equation, fn item ->
+            item == ~c"}"
+        end)
+        
+
+        if root do
+            index = Enum.slice(
+                Enum.at(equation, root),
+                1..-3//1
+            )
+            value = Enum.slice(equation, root + 1..final - 1//1)
+
+            if index == char, do: raise(ArgumentError, "Váriaveis não podem ser expoentes ou índices de raiz, precisa-se do logaritmo antes")
+            if char not in value do
+
+                result = App.Sintax.powroot_resolver(
+                    [~c"<" ++ index ++ ~c">{"] ++ value ++ [~c"}"]
+                )
+
+                App.Parse.drop_equation(
+                    equation,
+                    root,
+                    final - (root - 1)
+                ) |> App.Parse.insert_equation(root, result)
+                |> variable_root(char)
+            
+            else
+                List.replace_at(
+                    equation,
+                    root,
+                    ~c"r" ++ index ++ ~c">{"
+                ) |> variable_root(char)
+            end
+
+        else
+
+            Enum.map(equation, fn item ->
+                if List.first(item) == ?r do
+                    List.replace_at(item, 0, ?<)
+                else
+                    item
+                end
+            end)
+
+        end
+
+    end
 
     @spec variable_pow(equation :: equation_type(), char :: charlist()) :: equation_type()
     defp variable_pow(equation, char) do
@@ -18,8 +78,8 @@ defmodule App.Variable do
             next = Enum.at(equation, pow+1)
             previous = Enum.at(equation, pow-1)
 
-            if previous != char && next != char do
-
+            if next == char, do: raise(ArgumentError, "Váriaveis não podem ser expoentes ou índices de raiz, precisa-se do logaritmo antes")
+            if previous != char do
                 result = App.Sintax.powroot_resolver(
                     [previous] ++ [~c"^"] ++ [next]
                 )
@@ -47,21 +107,48 @@ defmodule App.Variable do
     end
 
 
-    @spec powroot_variable(left :: equation_type(), right :: equation_type(), char :: charlist()) :: equation_type()
-    defp powroot_variable(left, right, char) do
-        {powroots, count, _value} = App.Sintax.powroot_resolver(:bool, left)
+    @spec powroot_variable(left :: equation_type(), right :: charlist()) :: equation_type()
+    defp powroot_variable(left, right) do
+        {powroots, count, index} = App.Sintax.powroot_resolver(:bool, left)
 
         if powroots == :pow do
             next = Enum.at(left, count+1)
 
-            if next == char, do: raise(ArgumentError, "Váriaveis não podem ser indices ou expoentes, precisa-se do logarítimo antes")
+            right = if List.first(right) == ?- do
+                right = invert_signal(right)
+                [~c"<" ++ next ++ ~c">{"] ++ [right] ++ [~c"}"] 
+                |> App.Sintax.sintax_resolver()
+                |> List.first()
+                |> invert_signal()    
 
+            else
+                [~c"<" ++ next ++ ~c">{"] ++ [right] ++ [~c"}"] 
+                |> App.Sintax.sintax_resolver()
+                |> List.first()
+            end
 
-            [right] = [~c"<" ++ next ++ ~c">{"] ++ [right] ++ [~c"}"] 
-                    |> App.Sintax.sintax_resolver()
 
             left = App.Parse.drop_equation(left, count, 2)
             assign(left, right)
+
+        else
+            final = Enum.find_index(left, fn item ->
+                item == ~c"}"
+            end)
+
+            value = Enum.slice(left, count + 1..final - 1)
+            [right] = [right] ++ [~c"^"] ++ [index]
+                     |> App.Sintax.sintax_resolver()
+
+            [result] = assign(value, right)
+            if List.first(result) == ?- do
+                result = App.Math.to_number(invert_signal(result))
+                         |> App.Math.to_charlist()
+
+                [result]
+            else
+                [result]
+            end
 
         end
     end
@@ -139,8 +226,8 @@ defmodule App.Variable do
 
 
     @spec variable_plus(equation_type(), right :: equation_type(), left :: equation_type()) :: equation_type()
-    defp variable_plus([], right, left), do: {right, left}
-    defp variable_plus([exp | tail], right, left) do
+    def variable_plus([], right, left), do: {right, left}
+    def variable_plus([exp | tail], right, left) do
         [next, remaing] =
             if tail != [] do
                 [next | remaing] = tail
@@ -172,9 +259,9 @@ defmodule App.Variable do
     end
 
 
-    @spec variable_operator(equation_type(), right :: equation_type(), more? :: boolean()) :: equation_type()
-    defp variable_operator([], right, _more?), do: right
-    defp variable_operator([exp | tail], right, more?) do
+    @spec variable_operator(equation_type(), right :: equation_type()) :: equation_type()
+    defp variable_operator([], right), do: right
+    defp variable_operator([exp | tail], right) do
         [next, remaing] =
             if tail != [] do
                 [next | remaing] = tail
@@ -194,43 +281,31 @@ defmodule App.Variable do
         cond do
 
             List.last(exp) in @numbers ->
-                right = unless more? do
-                    
-                    if next == ~c"/" do
+                right = if next == ~c"/" do
                         [exp, next] ++ right
                     else
                         right ++ [swap_operator.(next), exp]
                     end
 
-                else
-                    right ++ [next, exp]
-                end
-
                 variable_operator(
                     remaing,
-                    right,
-                    more?
+                    right
                 )
 
             
             List.last(exp) in @variables ->
-                variable_operator(tail, right, more?)
+                variable_operator(tail, right)
 
 
             exp in @operators ->
-                right = unless more? do
-                    right ++ [swap_operator.(exp), next]
-                else
-                    right ++ [exp, next]
-                end
-
+                right = right ++ [swap_operator.(exp), next]
 
                 variable_operator(
                     remaing,
-                    right,
-                    more?
+                    right
                 )
 
+            exp -> raise("Caractere não mapeado: #{inspect(exp)}")
         end
 
     end
@@ -246,7 +321,7 @@ defmodule App.Variable do
         powroots = App.Sintax.powroot_resolver(:bool, left)
 
         cond do
-             brackets ->
+            brackets ->
                 {start, final} = brackets
                 operation = Enum.slice(left, start+1..final//1)
 
@@ -264,11 +339,12 @@ defmodule App.Variable do
 
 
             powroots ->
-                {powroots, count, _value} = powroots
                 left = variable_pow(left, char)
+                       |> variable_root(char)
+                left = App.Parse.auto_implement(:plus, left, nil)
+                {powroots, count, _value} = App.Sintax.powroot_resolver(:bool, left)
 
                 if powroots == :pow do
-
                     charset = [
                         Enum.at(left, count - 1),
                         ~c"^",
@@ -279,16 +355,36 @@ defmodule App.Variable do
                                 |> App.Parse.insert_equation(count - 1, [char])
 
                     [right] = assign(operation, right) 
-                    powroot_variable(charset, right, char)
+                    powroot_variable(charset, right)
+
+
+                else
+                    final = Enum.find_index(left, fn item ->
+                        item == ~c"}"
+                    end)
+
+                    charset = 
+                        [Enum.at(left, count)]
+                        ++
+                        Enum.slice(left, count + 1..final - 1)
+                        ++
+                        [~c"}"]
+
+                    operation = left -- charset
+                                 |> App.Parse.insert_equation(count, [char])
+
+                    [right] = assign(operation, right)
+                    powroot_variable(charset, right)
                 end
 
 
             operators ->
                 left = variable_multiply(left)
+                left = App.Parse.auto_implement(:plus, left, nil)
+
                 {right, left} = variable_plus(left, [right], [])
 
-                more? = more_operator?(left)
-                [operation] = variable_operator(left, right, more?)
+                [operation] = variable_operator(left, right)
                               |> App.Sintax.sintax_resolver()
     
                 if List.first(char) == ?- do
@@ -407,21 +503,6 @@ defmodule App.Variable do
     end
     defp swap_variable([exp | tail], var, value) do
         [exp | swap_variable(tail, var, value)]
-    end
-
-
-    @spec more_operator?(equation :: equation_type()) :: boolean()
-    def more_operator?(equation) do
-        result = List.delete_at(
-            equation,
-            App.Sintax.operator_resolver(:bool, equation)
-        )
-
-        if App.Sintax.operator_resolver(:bool, result) do
-            true
-        else
-            false
-        end
     end
 
 end

@@ -6,7 +6,7 @@ defmodule App.Main do
 
     def main([]), do: IO.puts("Falta de Argumentos.")
     
-    @spec main(args :: [String.t]) :: no_return()
+    @spec main(args :: [String.t()]) :: no_return()
     def main(args) do
         list_equation = format(
             List.first(args)

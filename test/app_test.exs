@@ -54,4 +54,15 @@ defmodule AppTest do
 
 		assert Agent.get(agent, &(&1))[~c"+X"] == [~c"+4.0"]
 	end
+
+	@tag :var_root
+	test "Utiliza raiz em variáveis" do
+		{:ok, agent} = Agent.start(fn -> %{} end)
+
+		App.Parse.parse_start(~c"62=34-6*(9.5+2)-<4>{X}+100")
+		|> List.first()
+		|> App.Sintax.variable_resolver(agent)
+
+		assert Agent.get(agent, &(&1))[~c"+X"] == [~c"+81.0"]
+	end
 end

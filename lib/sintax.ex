@@ -264,11 +264,16 @@ defmodule App.Sintax do
         {left, right} = equals
 
         left_resolve = App.Sintax.sintax_resolver(left)
+                       |> List.first()
+                       |> App.Math.to_number()
+
         right_resolve = App.Sintax.sintax_resolver(right)
+                        |> List.first()
+                        |> App.Math.to_number()
 
-        if left_resolve != right_resolve, do: raise(ArgumentError, "Igualdade não equivalente dos dois lados")
+        if left_resolve / 1 != right_resolve / 1, do: raise(ArgumentError, "Igualdade não equivalente dos dois lados")
 
-        left_resolve
+        [App.Math.to_charlist(left_resolve)]
     end
 
 
