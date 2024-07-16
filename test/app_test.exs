@@ -22,6 +22,17 @@ defmodule AppTest do
 		|> App.Sintax.sintax_resolver() == [~c"996.54"]
 	end
 
+	@tag :quocient
+	test "Utiliza os quocientes" do
+		{:ok, agent} = Agent.start(fn -> %{} end)
+
+		App.Parse.parse_start(~c"X=2*(9+3);X/2=Y")
+		|> App.Sintax.sintax_main(agent)
+
+		assert Agent.get(agent, &(&1))[~c"+X"] == [~c"+24.0"]
+		assert Agent.get(agent, &(&1))[~c"+Y"] == [~c"+12.0"]
+	end
+
 	@tag :var_plus
 	test "Utiliza soma e subtração de variáveis"  do
 		{:ok, agent} = Agent.start(fn -> %{} end)
@@ -41,7 +52,7 @@ defmodule AppTest do
 		|> List.first()
 		|> App.Sintax.variable_resolver(agent)
 
-		assert Agent.get(agent, &(&1))[~c"+X"] == [~c"3.0"]
+		assert Agent.get(agent, &(&1))[~c"+X"] == [~c"+3.0"]
 	end
 
 	@tag :var_power
@@ -65,4 +76,12 @@ defmodule AppTest do
 
 		assert Agent.get(agent, &(&1))[~c"+X"] == [~c"+81.0"]
 	end
+
+	@tag :log
+	test "Utiliza logaritmos" do
+		assert App.Parse.parse_start(~c"2-<6>\\36\\/2")
+		|> List.first()
+		|> App.Sintax.sintax_resolver() == [~c"1.0"] 
+	end
+
 end

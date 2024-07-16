@@ -339,6 +339,14 @@ defmodule App.Sintax do
 
         [value] = App.Sintax.sintax_resolver(value)
         variable_value = App.Variable.assign(operation, value)
+                         |> List.first()
+                         |> App.Math.to_number()
+        variable_value = variable_value / 1
+                         |> App.Math.to_charlist()
+                         |> App.Variable.invert_signal()
+                         |> App.Variable.invert_signal()
+
+
         char = List.replace_at(char, 0, ?+)
         
         Agent.update(
@@ -347,7 +355,8 @@ defmodule App.Sintax do
                 Map.put(
                     item,
                     char,
-                    variable_value)
+                    [variable_value]
+                )
             end)
 
         [value]
