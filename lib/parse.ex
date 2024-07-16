@@ -111,6 +111,9 @@ defmodule App.Parse do
 
             _root when (char == ?{) or (char == ?}) -> raise(ArgumentError, "Raiz sem indíce")
 
+            log when (char == ?\\) ->
+                [log]
+
 
             char -> raise(ArgumentError, "Caractere inválido: #{[char]}")
         end
@@ -235,6 +238,14 @@ defmodule App.Parse do
             true ->
                 index_find(tail, count + 1)
         end
+    end
+
+    @spec extract_index(index :: charlist) :: tuple()
+    def extract_index(index) do
+        func = List.last(index)
+        value = Enum.slice(index, 1..-3//1)
+        
+        {func, value}
     end
 
 end

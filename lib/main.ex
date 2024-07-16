@@ -5,7 +5,7 @@ defmodule App.Main do
     end
 
     def main([]), do: IO.puts("Falta de Argumentos.")
-    
+
     @spec main(args :: [String.t()]) :: no_return()
     def main(args) do
         list_equation = format(

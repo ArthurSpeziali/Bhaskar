@@ -90,7 +90,7 @@ defmodule App.Math do
     end
 
 
-    @spec root(value :: pos_integer(), index :: non_neg_integer()) :: float()
+    @spec root(value :: non_neg_integer(), index :: pos_integer()) :: float()
     def root(_value, index) when index < 2, do: raise(ArgumentError, "Índice da raiz precisa ser maior ou igual a 2")
     def root(value, _index) when value < 0, do: raise(ArgumentError, "Valor de dentro da raiz precisa ser positivo")
     
@@ -98,4 +98,12 @@ defmodule App.Math do
         Float.round(value ** (1 / index), @houses)
     end
 
+
+    @spec log(value :: pos_integer(), base :: pos_integer()) :: float()
+    def log(value, _base) when (value <= 0), do: raise(ArgumentError, "Valor do logarítmo tem que ser maior ou igual a 1")
+    def log(_value, base) when (base <= 1), do: raise(ArgumentError, "Base do logarítmo tem que ser maior ou igual a 2")
+
+    def log(value, base) do
+        :math.log(abs(value)) / :math.log(abs(base))
+    end
 end

@@ -1,5 +1,5 @@
 defmodule App.Sintax do
-    @dialyzer {:nowarn_function, variable_resolver: 2, variable_resolver: 3, sintax_verify: 4, sintax_main: 2, sintax_resolver: 1, bracket_finder: 2, bracket_resolver: 2, operator_resolver: 2, bracket_resolver: 1, operator_resolver: 1, equal_resolver: 2, equal_resolver: 1, powroot_resolver: 1, powroot_resolver: 2, extract_index: 1}
+    @dialyzer {:nowarn_function, variable_resolver: 2, variable_resolver: 3, sintax_verify: 4, sintax_main: 2, sintax_resolver: 1, bracket_finder: 2, bracket_resolver: 2, operator_resolver: 2, bracket_resolver: 1, operator_resolver: 1, equal_resolver: 2, equal_resolver: 1, powroot_resolver: 1, powroot_resolver: 2, log_resolver: 1, log_resolver: 2}
 
     @operators [~c"/", ~c"*"]
     @type equation_type() :: [charlist()]
@@ -42,6 +42,11 @@ defmodule App.Sintax do
             bracket_resolver(:bool, equation) -> 
                 sintax_resolver(
                     bracket_resolver(equation)
+                )
+
+            log_resolver(:bool, equation) ->
+                sintax_resolver(
+                    log_resolver(equation)
                 )
 
             powroot_resolver(:bool, equation) ->
@@ -160,7 +165,7 @@ defmodule App.Sintax do
 
         {root, value} = 
             if index do
-                {func, value} = extract_index(
+                {func, value} = App.Parse.extract_index(
                     Enum.at(equation, index)
                 )    
 
@@ -190,6 +195,35 @@ defmodule App.Sintax do
 
     end
     
+    
+    defp sintax_verify(:log, equation, _equation, _count) do
+        index = Enum.find_index(equation, fn item ->
+            List.first(item) == ?<
+        end)
+
+
+        if index do
+            {logarithm, base} = App.Parse.extract_index(
+                Enum.at(equation, index)
+            )
+
+            if logarithm == ?\\ do
+                final = Enum.find_index(equation, fn item -> 
+                    item == ~c"\\"
+                end)
+
+
+                {index, base, final}
+            else
+                false
+            end
+
+        else
+            false
+        end
+
+    end
+
 
 
     @spec bracket_finder(charlist(), count :: integer()) :: nil
@@ -367,11 +401,27 @@ defmodule App.Sintax do
     end
 
 
-    @spec extract_index(index :: charlist) :: tuple()
-    defp extract_index(index) do
-        func = List.last(index)
-        value = Enum.slice(index, 1..-3//1)
-        
-        {func, value}
+    @spec log_resolver(:bool, equation :: equation_type()) :: false | tuple()
+    def log_resolver(:bool, equation) do
+        sintax_verify(:log, equation, equation, 0)
     end
+
+    @spec log_resolver(equation :: equation_type()) :: equation_type()
+    def log_resolver(equation) do
+        {index, base, final} = sintax_verify(:log, equation, equation, 0)
+
+        [value] = sintax_resolver(
+            Enum.slice(equation, index + 1..final - 1)
+        )
+
+        value = App.Math.to_number(value)
+        base = App.Math.to_number(base)
+        
+        result = App.Math.log(value, base)
+                 |> App.Math.to_charlist()
+
+        App.Parse.drop_equation(equation, index, final - (index - 1))
+        |> App.Parse.insert_equation(index, [result])
+    end
+
 end
