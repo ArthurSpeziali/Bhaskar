@@ -1,5 +1,5 @@
 defmodule App.Sintax do
-    @dialyzer {:nowarn_function, variable_resolver: 2, variable_resolver: 3, sintax_verify: 4, sintax_main: 2, sintax_resolver: 1, bracket_finder: 2, bracket_resolver: 2, operator_resolver: 2, bracket_resolver: 1, operator_resolver: 1, equal_resolver: 2, equal_resolver: 1, powroot_resolver: 1, powroot_resolver: 2, log_resolver: 1, log_resolver: 2}
+    @dialyzer {:nowarn_function, variable_resolver: 2, variable_resolver: 3, sintax_verify: 4, sintax_main: 2, sintax_resolver: 1, bracket_finder: 2, bracket_resolver: 2, operator_resolver: 2, bracket_resolver: 1, operator_resolver: 1, equal_resolver: 2, equal_resolver: 1, powroot_resolver: 1, powroot_resolver: 2, log_resolver: 1, log_resolver: 2, variable_index: 1}
 
     @operators [~c"/", ~c"*"]
     @type equation_type() :: [charlist()]
@@ -17,9 +17,9 @@ defmodule App.Sintax do
                 item = App.Variable.get_variable(item, agent)
 
                 item = 
-                    if variable_resolver(:bool, item, agent) do
+                    if variable_resolver(:bool, item, agent) || variable_index(item) do
                         variable_resolver(item, agent)
-                    else
+                    else 
                         item
                     end
 
@@ -319,6 +319,17 @@ defmodule App.Sintax do
     @spec variable_resolver(equation :: equation_type(), agent :: Agent.agent()) :: equation_type()
     def variable_resolver(equation, agent) do
         variables = App.Variable.find_variable(equation, 0)
+        variables = if !variables do
+
+            count = variable_index(equation)
+            {_, char} = App.Parse.extract_index(
+                Enum.at(equation, count)
+            )
+
+            {char, count}
+        else
+            variables
+        end
 
         {char, _count} = variables
         equals = equal_resolver(:bool, equation)
@@ -327,14 +338,25 @@ defmodule App.Sintax do
         {left, right} = equals
 
         {operation, value} = cond do
+            (char in left) && (char in right) ->
+                raise(ArgumentError, "Valor de #{char} não foi encontrado")
+
             char in left ->
                 {left, right}
 
             char in right ->
                 {right, left}
 
-            (char in left) && (char in right) ->
+
+            variable_index(left) && variable_index(right) ->
                 raise(ArgumentError, "Valor de #{char} não foi encontrado")
+
+            variable_index(left) ->
+                {left, right}
+
+            variable_index(right) ->
+                {right, left}
+
         end
 
         [value] = App.Sintax.sintax_resolver(value)
@@ -431,6 +453,28 @@ defmodule App.Sintax do
 
         App.Parse.drop_equation(equation, index, final - (index - 1))
         |> App.Parse.insert_equation(index, [result])
+    end
+
+
+    @spec variable_index(equation :: equation_type()) :: false | integer()
+    def variable_index(equation) do
+        {:ok, agent} = Agent.start(fn -> %{} end)
+        index = App.Parse.index_find(equation, 0)
+
+        if index do
+            {_func, value} = Enum.at(equation, index)
+                          |> App.Parse.extract_index()
+
+            if variable_resolver(:bool, [value], agent) do
+                index
+            else
+                false
+            end
+
+        else
+            false
+        end
+
     end
 
 end

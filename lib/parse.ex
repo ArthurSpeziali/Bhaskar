@@ -67,7 +67,7 @@ defmodule App.Parse do
 
             _signal when (char == ?<) and (last in @signals) -> []
 
-            index when (char == ?>) and (last in @numbers) ->
+            index when (char == ?>) and (last in @numbers or last in @variables) ->
                 [index | parse_case(tail, char)]
 
             _number when (char not in @numbers) and (last in @numbers) -> []
@@ -101,9 +101,8 @@ defmodule App.Parse do
             index when (char == ?<) and (last != ?< and last != ?>) ->
                 [index | parse_case(tail, char)]
 
-            _index when (char == ?>) and (last in @variables) -> raise(ArgumentError, "Não é permitido váriaveis em índice")
 
-            _index when (char == ?<) or (char == ?>) -> raise(ArgumentError, "Índice inválido")
+            _index when (char == ?<) or (char == ?>) -> raise(ArgumentError, "Índice inválido #{inspect({char, last})}")
 
 
             root when (char == ?{ and last == ?>) or (char == ?}) ->
@@ -218,7 +217,13 @@ defmodule App.Parse do
         [[?+, var] | variable_signal(tail)]
     end
     defp variable_signal([exp | tail]) do
-        [exp | variable_signal(tail)]
+        case exp do
+            [?<, var, ?>, func] ->
+                [ [?<, ?+, var, ?>, func] | variable_signal(tail)]
+
+            _ ->
+                [exp | variable_signal(tail)]
+        end
     end
 
 

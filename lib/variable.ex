@@ -1,5 +1,5 @@
 defmodule App.Variable do
-    @dialyzer {:nowarn_function, assign: 2, invert_signal: 1, swap_variable: 3, get_variable: 2, variable_plus: 3, variable_multiply: 1, variable_operator: 2, variable_bracket: 4, powroot_variable: 2, variable_pow: 2, variable_root: 2}
+    @dialyzer {:nowarn_function, assign: 2, invert_signal: 1, swap_variable: 3, get_variable: 2, variable_plus: 3, variable_multiply: 1, variable_operator: 2, variable_bracket: 4, powroot_variable: 2, variable_pow: 2, variable_root: 3}
 
     @type equation_type() :: [charlist()]
     @variables Enum.to_list(?A..?Z)
@@ -8,8 +8,8 @@ defmodule App.Variable do
     @operators [~c"/", ~c"*"]
 
 
-    @spec variable_root(equation :: equation_type(), char :: charlist()) :: equation_type()
-    defp variable_root(equation, char) do
+    @spec variable_root(equation :: equation_type(), char :: charlist(), right :: charlist()) :: equation_type()
+    defp variable_root(equation, char, right) do
         root = Enum.find_index(equation, fn item -> 
             case item do
                 [?r, _index, ?>, ?{] -> false
@@ -32,9 +32,7 @@ defmodule App.Variable do
             )
             value = Enum.slice(equation, root + 1..final - 1//1)
 
-            if index == char, do: raise(ArgumentError, "Váriaveis não podem ser expoentes ou índices de raiz, precisa-se do logaritmo antes")
-            if char not in value do
-
+            if char not in value && char != index do
                 result = App.Sintax.powroot_resolver(
                     [~c"<" ++ index ++ ~c">{"] ++ value ++ [~c"}"]
                 )
@@ -44,24 +42,33 @@ defmodule App.Variable do
                     root,
                     final - (root - 1)
                 ) |> App.Parse.insert_equation(root, result)
-                |> variable_root(char)
+                |> variable_root(char, right)
             
             else
                 List.replace_at(
                     equation,
                     root,
                     ~c"r" ++ index ++ ~c">{"
-                ) |> variable_root(char)
+                ) |> List.replace_at(
+                    root + 2,
+                    ~c"r}"
+                ) |> variable_root(char, right)
             end
 
         else
 
             Enum.map(equation, fn item ->
-                if List.first(item) == ?r do
-                    List.replace_at(item, 0, ?<)
-                else
-                    item
+                cond do
+                    item == ~c"r}" ->
+                        ~c"}"
+
+                    List.first(item) == ?r ->
+                        List.replace_at(item, 0, ?<)
+
+                    true -> 
+                        item
                 end
+
             end)
 
         end
@@ -132,25 +139,42 @@ defmodule App.Variable do
             assign(left, right)
 
         else
+
             final = Enum.find_index(left, fn item ->
                 item == ~c"}"
             end)
 
             value = Enum.slice(left, count + 1..final - 1)
-            [right] = [right] ++ [~c"^"] ++ [index]
-                     |> App.Sintax.sintax_resolver()
 
-            [result] = assign(value, right)
+            result = if List.last(index) not in @variables do
+                [right] = [right] ++ [~c"^"] ++ [index]
+                          |> App.Sintax.sintax_resolver()
+                assign(value, right)
+
+            else
+                set = App.Math.log(
+                    List.first(value)
+                    |> App.Math.to_number(),
+
+                    App.Math.to_number(right)
+                ) |> App.Math.to_charlist()
+
+                [set]
+            end 
+
+
             if List.first(result) == ?- do
                 result = App.Math.to_number(invert_signal(result))
                          |> App.Math.to_charlist()
 
-                [result]
+                result
             else
-                [result]
+                result
             end
 
+
         end
+
     end
 
 
@@ -281,7 +305,8 @@ defmodule App.Variable do
         cond do
 
             List.last(exp) in @numbers ->
-                right = if next == ~c"/" do
+                right = 
+                    if next == ~c"/" do
                         [exp, next] ++ right
                     else
                         right ++ [swap_operator.(next), exp]
@@ -315,6 +340,18 @@ defmodule App.Variable do
     @spec assign(left :: equation_type(), right :: charlist()) :: false | equation_type()
     def assign(left, right) do
         variables = find_variable(left, 0)
+        variables = if !variables do
+
+            count = App.Sintax.variable_index(left)
+            {_, char} = App.Parse.extract_index(
+                Enum.at(left, count)
+            )
+
+            {char, count}
+        else
+            variables
+        end
+
         {char, count} = variables
         operators = App.Sintax.operator_resolver(:bool, left)
         brackets = App.Sintax.bracket_resolver(:bool, left)
@@ -340,7 +377,7 @@ defmodule App.Variable do
 
             powroots ->
                 left = variable_pow(left, char)
-                       |> variable_root(char)
+                       |> variable_root(char, right)
                 left = App.Parse.auto_implement(:plus, left, nil)
                 {powroots, count, _value} = App.Sintax.powroot_resolver(:bool, left)
 
