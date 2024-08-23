@@ -85,8 +85,7 @@ defmodule App.Variable do
             next = Enum.at(equation, pow+1)
             previous = Enum.at(equation, pow-1)
 
-            if next == char, do: raise(ArgumentError, "Váriaveis não podem ser expoentes ou índices de raiz, precisa-se do logaritmo antes")
-            if previous != char do
+            if previous != char && next != char do
                 result = App.Sintax.powroot_resolver(
                     [previous] ++ [~c"^"] ++ [next]
                 )
@@ -115,11 +114,11 @@ defmodule App.Variable do
 
 
     @spec powroot_variable(left :: equation_type(), right :: charlist()) :: equation_type()
-    defp powroot_variable(left, right) do
+    def powroot_variable(left, right) do
         {powroots, count, index} = App.Sintax.powroot_resolver(:bool, left)
 
         if powroots == :pow do
-            next = Enum.at(left, count+1)
+            next = Enum.at(left, count + 1)
 
             right = if List.first(right) == ?- do
                 right = invert_signal(right)
@@ -129,15 +128,31 @@ defmodule App.Variable do
                 |> invert_signal()    
 
             else
-                [~c"<" ++ next ++ ~c">{"] ++ [right] ++ [~c"}"] 
-                |> App.Sintax.sintax_resolver()
-                |> List.first()
+
+                if List.last(next) not in @variables do
+                    [~c"<" ++ next ++ ~c">{"] ++ [right] ++ [~c"}"] 
+                    |> App.Sintax.sintax_resolver()
+                    |> List.first()
+
+                else
+                    value = Enum.at(left, count - 1)
+
+                    App.Math.log(
+                        App.Math.to_number(right),
+                        App.Math.to_number(value)
+                    ) |> App.Math.to_charlist()
+
+                end
             end
 
 
-            left = App.Parse.drop_equation(left, count, 2)
-            assign(left, right)
+            left = if List.last(next) not in @variables do
+                App.Parse.drop_equation(left, count, 2)
+            else
+                App.Parse.drop_equation(left, count - 1, 2)
+            end
 
+            assign(left, right)
         else
 
             final = Enum.find_index(left, fn item ->
@@ -157,7 +172,7 @@ defmodule App.Variable do
                     |> App.Math.to_number(),
 
                     App.Math.to_number(right)
-                ) |> App.Math.to_charlist()
+                ) |> IO.inspect()
 
                 [set]
             end 
