@@ -114,7 +114,7 @@ defmodule App.Variable do
 
 
     @spec powroot_variable(left :: equation_type(), right :: charlist()) :: equation_type()
-    def powroot_variable(left, right) do
+    defp powroot_variable(left, right) do
         {powroots, count, index} = App.Sintax.powroot_resolver(:bool, left)
 
         if powroots == :pow do
