@@ -172,7 +172,7 @@ defmodule App.Variable do
                     |> App.Math.to_number(),
 
                     App.Math.to_number(right)
-                ) |> IO.inspect()
+                ) |> App.Math.to_charlist()
 
                 [set]
             end 

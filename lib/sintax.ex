@@ -198,7 +198,11 @@ defmodule App.Sintax do
     
     defp sintax_verify(:log, equation, _equation, _count) do
         index = Enum.find_index(equation, fn item ->
-            List.first(item) == ?<
+            Enum.slice(
+                item,
+                -2..-1//1
+            ) == ~c">\\"
+
         end)
 
 
