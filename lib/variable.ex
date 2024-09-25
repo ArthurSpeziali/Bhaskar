@@ -1,11 +1,64 @@
 defmodule App.Variable do
-    @dialyzer {:nowarn_function, assign: 2, invert_signal: 1, swap_variable: 3, get_variable: 2, variable_plus: 3, variable_multiply: 1, variable_operator: 2, variable_bracket: 4, powroot_variable: 2, variable_pow: 2, variable_root: 3}
+    @dialyzer {:nowarn_function, assign: 2, invert_signal: 1, swap_variable: 3, get_variable: 2, variable_plus: 3, variable_multiply: 1, variable_operator: 2, variable_bracket: 4, powroot_variable: 2, variable_pow: 2, variable_root: 3, variable_log: 3}
 
     @type equation_type() :: [charlist()]
     @variables Enum.to_list(?A..?Z)
     @numbers Enum.to_list(?0..?9)
     @signals ~c"-+"
     @operators [~c"/", ~c"*"]
+
+
+    @spec variable_log(equation :: equation_type(), char :: charlist(), right :: charlist()) :: equation_type()
+    defp variable_log(equation, char, right) do
+        logs = App.Sintax.log_resolver(:bool, equation)
+
+        if logs do 
+            {begin, index, final} = logs
+
+            value = Enum.slice(equation, begin + 1..final - 1//1)
+            value = if char not in value do
+                App.Sintax.sintax_resolver(value)
+            else
+                value
+            end
+
+                    
+            if char not in value && char != index do
+                result = App.Sintax.log_resolver(
+                    Enum.slice(equation, begin, final + 1)
+                )
+
+                App.Parse.drop_equation(
+                    equation,
+                    begin,
+                    final + 1
+                ) |> App.Parse.insert_equation(
+                    begin,
+                    result
+                ) |> variable_log(char, right)
+
+
+            else
+                List.replace_at(
+                    equation,
+                    begin,
+                    ~c"<" ++ index ++ ~c">l"
+                ) |> variable_log(char, right)
+            end
+
+        else
+            Enum.map(equation, fn item ->
+                cond do
+                    List.last(item) == ?l ->
+                        List.replace_at(item, -1, ?\\)
+
+                    true ->
+                        item
+                end
+            end)
+        end
+
+    end
 
 
     @spec variable_root(equation :: equation_type(), char :: charlist(), right :: charlist()) :: equation_type()
@@ -349,7 +402,7 @@ defmodule App.Variable do
         end
 
     end
-    
+
 
 
     @spec assign(left :: equation_type(), right :: charlist()) :: false | equation_type()
@@ -371,6 +424,7 @@ defmodule App.Variable do
         operators = App.Sintax.operator_resolver(:bool, left)
         brackets = App.Sintax.bracket_resolver(:bool, left)
         powroots = App.Sintax.powroot_resolver(:bool, left)
+        logs = App.Sintax.log_resolver(:bool, left)
 
         cond do
             brackets ->
@@ -390,44 +444,108 @@ defmodule App.Variable do
                 end
 
 
+            logs ->
+                left = variable_log(left, char, right)
+                left = App.Parse.auto_implement(:plus, left, nil)
+                finish? =  App.Sintax.log_resolver(:bool, left)
+                
+                if finish? do
+                    {begin, index, final} = finish?
+                    value = Enum.slice(left, begin + 1, final - 1)
+
+
+                    if index == char do
+                        value = App.Sintax.sintax_resolver(value)
+
+                        right = App.Parse.drop_equation(left, begin, 3)
+                            |> App.Parse.insert_equation(begin, [char])
+                            |> assign(right)
+                            |> List.first()
+
+
+                        result = App.Math.root(
+                            App.Math.to_number(List.first(value)),
+                            App.Math.to_number(right)
+                        ) |> App.Math.to_charlist()
+
+                        [result]
+
+                    else
+                        left = App.Parse.drop_equation(
+                            left,
+                            begin + 1,
+                            final - (begin + 1)
+                        ) |> App.Parse.insert_equation(
+                            begin + 1,
+                            [char]
+                        ) 
+
+                        right = App.Parse.drop_equation(left, begin, 3)
+                            |> App.Parse.insert_equation(begin, [char])
+                            |> assign(right)
+                            |> List.first()
+
+                        result = App.Math.to_number(index) ** App.Math.to_number(right)
+                        result = App.Math.to_charlist(result)
+
+                        assign(value, result)
+                    end
+
+
+
+                else
+                    assign(left, right)
+                end
+
+
+
             powroots ->
                 left = variable_pow(left, char)
                        |> variable_root(char, right)
                 left = App.Parse.auto_implement(:plus, left, nil)
-                {powroots, count, _value} = App.Sintax.powroot_resolver(:bool, left)
+                finish? = App.Sintax.powroot_resolver(:bool, left)
 
-                if powroots == :pow do
-                    charset = [
-                        Enum.at(left, count - 1),
-                        ~c"^",
-                        Enum.at(left, count + 1)
-                    ]
+                if finish? do
+                    {powroots, count, _value} = finish?
 
-                    operation = left -- charset
-                                |> App.Parse.insert_equation(count - 1, [char])
+                    if powroots == :pow do
+                        charset = [
+                            Enum.at(left, count - 1),
+                            ~c"^",
+                            Enum.at(left, count + 1)
+                        ]
 
-                    [right] = assign(operation, right) 
-                    powroot_variable(charset, right)
+                        operation = left -- charset
+                                    |> App.Parse.insert_equation(count - 1, [char])
 
+                        [right] = assign(operation, right) 
+                        powroot_variable(charset, right)
+
+
+                    else
+                        final = Enum.find_index(left, fn item ->
+                            item == ~c"}"
+                        end)
+
+                        charset = 
+                            [Enum.at(left, count)]
+                            ++
+                            Enum.slice(left, count + 1..final - 1)
+                            ++
+                            [~c"}"]
+
+                        operation = left -- charset
+                                     |> App.Parse.insert_equation(count, [char])
+
+                        [right] = assign(operation, right)
+                        powroot_variable(charset, right)
+                    end
 
                 else
-                    final = Enum.find_index(left, fn item ->
-                        item == ~c"}"
-                    end)
+                    assign(left, right)
+                end 
 
-                    charset = 
-                        [Enum.at(left, count)]
-                        ++
-                        Enum.slice(left, count + 1..final - 1)
-                        ++
-                        [~c"}"]
-
-                    operation = left -- charset
-                                 |> App.Parse.insert_equation(count, [char])
-
-                    [right] = assign(operation, right)
-                    powroot_variable(charset, right)
-                end
+        
 
 
             operators ->

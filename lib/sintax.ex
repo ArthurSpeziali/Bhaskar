@@ -22,7 +22,6 @@ defmodule App.Sintax do
                     else 
                         item
                     end
-
                 sintax_resolver(item)
             end
 
