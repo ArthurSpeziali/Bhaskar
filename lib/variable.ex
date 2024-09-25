@@ -103,7 +103,7 @@ defmodule App.Variable do
                     root,
                     ~c"r" ++ index ++ ~c">{"
                 ) |> List.replace_at(
-                    root + 2,
+                    root + (Enum.count(value) + 1),
                     ~c"r}"
                 ) |> variable_root(char, right)
             end
@@ -502,6 +502,7 @@ defmodule App.Variable do
             powroots ->
                 left = variable_pow(left, char)
                        |> variable_root(char, right)
+
                 left = App.Parse.auto_implement(:plus, left, nil)
                 finish? = App.Sintax.powroot_resolver(:bool, left)
 
