@@ -81,7 +81,7 @@ defmodule App.Parse do
             signal when (char in @signals) and (last == nil)->
                 [signal | parse_case(tail, char)]
 
-            _signal when (char in @signals) -> raise(ArgumentError, "Sinal inválido")
+            _signal when (char in @signals) -> App.Errors.invalid_signal(char, tail, last)
 
             number when (char in @numbers) -> 
                 [number | parse_case(tail, char)]
