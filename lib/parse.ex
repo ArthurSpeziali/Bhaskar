@@ -63,7 +63,7 @@ defmodule App.Parse do
             float when (char == ?.) and (last in @numbers) ->
                 [float | parse_case(tail, char)]
 
-            _float when (char == ?.) -> raise(ArgumentError, "Decimal inválido")
+            _float when (char == ?.) -> App.Errors.invalid_float([last, char, tail], 1)
 
             _signal when (char == ?<) and (last in @signals) -> []
 
@@ -81,7 +81,7 @@ defmodule App.Parse do
             signal when (char in @signals) and (last == nil)->
                 [signal | parse_case(tail, char)]
 
-            _signal when (char in @signals) -> App.Errors.invalid_signal(char, tail, last)
+            _signal when (char in @signals) -> App.Errors.invalid_signal([last, char, tail], 1)
 
             number when (char in @numbers) -> 
                 [number | parse_case(tail, char)]
