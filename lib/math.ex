@@ -1,4 +1,6 @@
 defmodule App.Math do
+    @dialyzer {:nowarn_function, resolve_multiply: 2}
+
     @houses 8
     @type equation_type() :: [charlist()]
 
@@ -38,7 +40,16 @@ defmodule App.Math do
         previous = to_number(previous)
 
         next = Enum.at(equation, char + 1)
-        next = to_number(next)
+
+        number? = List.to_string(next)
+                  |> Integer.parse()
+
+        case number? do
+            {_integer, ""} -> false
+            {_integer, _string} -> App.Errors.invalid_operator(equation, char)
+            :error -> App.Errors.invalid_operator(equation, char)
+        end
+
 
         result = case operator do
             ~c"*" ->

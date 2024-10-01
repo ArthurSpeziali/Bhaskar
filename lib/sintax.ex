@@ -308,7 +308,7 @@ defmodule App.Sintax do
                         |> List.first()
                         |> App.Math.to_number()
 
-        if left_resolve / 1 != right_resolve / 1, do: raise(ArgumentError, "Igualdade não equivalente dos dois lados")
+        if left_resolve / 1 != right_resolve / 1, do: App.Errors.invalid_equality(equation)
 
         [App.Math.to_charlist(left_resolve)]
     end
@@ -396,11 +396,23 @@ defmodule App.Sintax do
     @spec powroot_resolver(equation :: equation_type()) :: equation_type()
     def powroot_resolver(equation) do
         {powroots, count, value} = sintax_verify(:powroot, equation, equation, 0)
-
+        
         if powroots == :pow do
             previous = App.Math.to_number(
                 Enum.at(equation, count - 1)
             )
+
+
+            number? = List.to_string(
+                Enum.at(equation, count + 1)
+            ) |> Integer.parse()
+
+            case number? do
+                {_integer, ""} -> false
+                {_integer, _string} -> App.Errors.invalid_operator(equation, count)
+                :error -> App.Errors.invalid_operator(equation, count)
+            end
+
 
             next = App.Math.to_number(
                 Enum.at(equation, count + 1)
