@@ -3,9 +3,9 @@ defmodule App.Errors do
     defexception message: "Bhaskar Error was found."
 
 
-    @spec invalid_signal(equation :: charlist(), pos :: non_neg_integer()) :: no_return() 
-    def invalid_signal(equation, pos) do
-        error_make(equation, pos, 1, "Invalid signal character:")
+    @spec invalid_signal(equation :: charlist()) :: no_return() 
+    def invalid_signal(equation) do
+        error_make(equation, 1, 1, "Invalid signal character:")
     end
 
     @spec invalid_float(equation :: charlist(), pos :: non_neg_integer()) :: no_return()
@@ -38,6 +38,44 @@ defmodule App.Errors do
         end)
         
         error_make(equation, pos, 1, "Invalid equation's equality:")
+    end
+
+    @spec invalid_rootIndex(equation :: charlist()) :: no_return()
+    def invalid_rootIndex([last, char, tail]) do
+        equation = if last do 
+            [last | [char | tail]]
+        else
+            [char | tail]
+        end
+
+        error_make(equation, 0, 1, "Invalid root index:")
+    end
+
+    @spec invalid_index(equation :: charlist()) :: no_return()
+    def invalid_index([last, char, tail]) do
+        if tail == :non do
+            error_make(last, 0, 1, "Invalid index:")
+        else
+
+            equation = if last do 
+                [last | [char | tail]]
+            else
+                [char | tail]
+            end
+
+            error_make(equation, 0, 1, "Invalid index:")
+        end
+    end
+
+    @spec invalid_char(equation :: charlist()) :: no_return()
+    def invalid_char([last, char, tail]) do
+        equation = if last do 
+            [last | [char | tail]]
+        else
+            [char | tail]
+        end
+
+        error_make(equation, 0, 1, "Invalid character:")
     end
 
     

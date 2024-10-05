@@ -405,11 +405,11 @@ defmodule App.Sintax do
 
             number? = List.to_string(
                 Enum.at(equation, count + 1)
-            ) |> Integer.parse()
+            ) |> Float.parse()
 
             case number? do
-                {_integer, ""} -> false
-                {_integer, _string} -> App.Errors.invalid_operator(equation, count)
+                {_float, ""} -> false
+                {_float, _string} -> App.Errors.invalid_operator(equation, count)
                 :error -> App.Errors.invalid_operator(equation, count)
             end
 

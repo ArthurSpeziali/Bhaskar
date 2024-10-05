@@ -81,7 +81,7 @@ defmodule App.Parse do
             signal when (char in @signals) and (last == nil)->
                 [signal | parse_case(tail, char)]
 
-            _signal when (char in @signals) -> App.Errors.invalid_signal([last, char, tail], 1)
+            _signal when (char in @signals) -> App.Errors.invalid_signal([last, char, tail])
 
             number when (char in @numbers) -> 
                 [number | parse_case(tail, char)]
@@ -102,19 +102,19 @@ defmodule App.Parse do
                 [index | parse_case(tail, char)]
 
 
-            _index when (char == ?<) or (char == ?>) -> raise(ArgumentError, "Índice inválido #{inspect({char, last})}")
+            _index when (char == ?<) or (char == ?>) -> App.Errors.invalid_index([last, char, tail])
 
 
             root when (char == ?{ and last == ?>) or (char == ?}) ->
                 [root]
 
-            _root when (char == ?{) or (char == ?}) -> raise(ArgumentError, "Raiz sem indíce")
+            _root when (char == ?{) or (char == ?}) -> App.Errors.invalid_rootIndex([last, char, tail])
 
             log when (char == ?\\) ->
                 [log]
 
 
-            char -> raise(ArgumentError, "Caractere inválido: #{[char]}")
+            char -> App.Errors.invalid_char([last, char, tail])
         end
 
     end
@@ -237,7 +237,7 @@ defmodule App.Parse do
     
 
             (?< in exp) || (?> in exp) -> 
-                raise(ArgumentError, "Índice inválido")
+                App.Errors.invalid_index([exp, [], :non])
 
 
             true ->
