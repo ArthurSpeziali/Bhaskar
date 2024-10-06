@@ -114,7 +114,7 @@ defmodule App.Parse do
                 [log]
 
 
-            char -> App.Errors.invalid_char([last, char, tail])
+            char -> App.Errors.unknow_char([last, char, tail])
         end
 
     end

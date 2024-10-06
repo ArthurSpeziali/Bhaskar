@@ -398,7 +398,6 @@ defmodule App.Variable do
                     right
                 )
 
-            exp -> raise("Caractere não mapeado: #{inspect(exp)}")
         end
 
     end

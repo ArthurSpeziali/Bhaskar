@@ -23,6 +23,28 @@ defmodule App.Math do
 
     defp resolve_plus([]), do: 0
     defp resolve_plus([exp | tail]) do
+        frequencies = Enum.frequencies(exp)
+
+        equation_find = fn 
+            item ->
+                item == ~c"." || item == ?.
+        end
+        
+        if frequencies[?.] do
+            pos = Enum.find_index(
+                List.delete_at(
+                    exp,
+
+                    Enum.find_index(
+                        exp,
+                        equation_find
+                    )
+                ),
+                equation_find
+            )
+            App.Errors.invalid_float([exp | tail], pos + 1)
+        end
+
 
         if ?. in exp do
             List.to_float(exp) + resolve_plus(tail)
@@ -40,6 +62,7 @@ defmodule App.Math do
         previous = to_number(previous)
 
         next = Enum.at(equation, char + 1)
+        if !next, do: App.Errors.missing_char(equation)
 
         number? = List.to_string(next)
                   |> Integer.parse()
@@ -49,6 +72,7 @@ defmodule App.Math do
             {_integer, _string} -> App.Errors.invalid_operator(equation, char)
             :error -> App.Errors.invalid_operator(equation, char)
         end
+        {next, _string} = number?
 
 
         result = case operator do
@@ -102,8 +126,8 @@ defmodule App.Math do
 
 
     @spec root(value :: non_neg_integer(), index :: pos_integer()) :: float()
-    def root(_value, index) when index < 2, do: raise(ArgumentError, "Índice da raiz precisa ser maior ou igual a 2")
-    def root(value, _index) when value < 0, do: raise(ArgumentError, "Valor de dentro da raiz precisa ser positivo")
+    def root(_value, index) when index < 2, do: App.Errors.outrange_rootIndex(index)
+    def root(value, _index) when value < 0, do: App.Errors.outrange_rootValue(value)
     
     def root(value, index) do
         Float.round(value ** (1 / index), @houses)
@@ -111,8 +135,8 @@ defmodule App.Math do
 
 
     @spec log(value :: pos_integer(), base :: pos_integer()) :: float()
-    def log(value, _base) when (value <= 0), do: raise(ArgumentError, "Valor do logarítmo tem que ser maior ou igual a 1")
-    def log(_value, base) when (base <= 1), do: raise(ArgumentError, "Base do logarítmo tem que ser maior ou igual a 2")
+    def log(value, _base) when (value <= 0), do: App.Errors.outrange_logValue(value)
+    def log(_value, base) when (base <= 1), do: App.Errors.outrange_logBase(base)
 
     def log(value, base) do
         :math.log(abs(value)) / :math.log(abs(base))

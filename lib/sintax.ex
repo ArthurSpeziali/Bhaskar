@@ -33,7 +33,7 @@ defmodule App.Sintax do
     def sintax_resolver(equation) do
         cond do
             variable_resolver(:bool, equation, nil) ->
-                raise(ArgumentError, "Valor de váriaveis não especificadas")
+                App.Errors.unknow_variable(equation)
 
             equal_resolver(:bool, equation) ->
                 equal_resolver(equation)
@@ -129,7 +129,7 @@ defmodule App.Sintax do
         end
     end
 
-    defp sintax_verify(:equal, [exp | tail], _equation, _count) do
+    defp sintax_verify(:equal, [exp | tail], equation, _count) do
         equal_value = Enum.find_index(
             [exp | tail],
             &(&1 == ~c"=")
@@ -137,7 +137,7 @@ defmodule App.Sintax do
 
         if equal_value do
             frequencies = Enum.frequencies([exp | tail])
-            if frequencies[~c"="] > 1, do: raise(ArgumentError, "Mais de um sinal de igual")
+            if frequencies[~c"="] > 1, do: App.Errors.outrange_equal(equation)
 
 
             left = Enum.slice(
@@ -231,7 +231,7 @@ defmodule App.Sintax do
 
     @spec bracket_finder(charlist(), count :: integer()) :: nil
     defp bracket_finder([], count) do
-        if count != 0, do: raise(ArgumentError, "Parenteses inválidos #{count}")
+        if count != 0, do: App.Errors.invalid_bracketsCount(count)
     end
 
     defp bracket_finder([char | tail], count) when count >= 0 do
@@ -244,7 +244,7 @@ defmodule App.Sintax do
 
     end
 
-    defp bracket_finder(_equation, _count), do: raise(ArgumentError, "Parenteses inválidos")
+    defp bracket_finder(equation, _count), do: App.Errors.invalid_bracketsPos(equation)
 
 
     @spec bracket_resolver(:bool, equation :: equation_type()) :: false | any()
@@ -337,12 +337,12 @@ defmodule App.Sintax do
         {char, _count} = variables
         equals = equal_resolver(:bool, equation)
 
-        if !equals, do: raise(ArgumentError, "Valor de #{char} não foi encontrado")
+        if !equals, do: App.Errors.unknow_variableValue(equation, char)
         {left, right} = equals
 
         {operation, value} = cond do
             (char in left) && (char in right) ->
-                raise(ArgumentError, "Valor de #{char} não foi encontrado")
+                App.Errors.unknow_variableValue(equation, char)
 
             char in left ->
                 {left, right}
@@ -352,7 +352,7 @@ defmodule App.Sintax do
 
 
             variable_index(left) && variable_index(right) ->
-                raise(ArgumentError, "Valor de #{char} não foi encontrado")
+                App.Errors.unknow_variableValue(equation, char)
 
             variable_index(left) ->
                 {left, right}
@@ -401,10 +401,11 @@ defmodule App.Sintax do
             previous = App.Math.to_number(
                 Enum.at(equation, count - 1)
             )
-
+            next = Enum.at(equation, count + 1)
+            if !next, do: App.Errors.missing_char(equation)
 
             number? = List.to_string(
-                Enum.at(equation, count + 1)
+                next
             ) |> Float.parse()
 
             case number? do
@@ -427,7 +428,7 @@ defmodule App.Sintax do
             final = Enum.find_index(equation, fn item ->
                 item == ~c"}"
             end)
-            if final == nil, do: raise(ArgumentError, "Fim da raiz não encontrada")
+            if !final, do: App.Errors.missing_char(equation)
 
             [operation] = Enum.slice(equation, count + 1..final - 1//1)
                      |> sintax_resolver()
@@ -455,6 +456,7 @@ defmodule App.Sintax do
     @spec log_resolver(equation :: equation_type()) :: equation_type()
     def log_resolver(equation) do
         {index, base, final} = sintax_verify(:log, equation, equation, 0)
+        if !final, do: App.Errors.missing_char(equation)
 
         [value] = sintax_resolver(
             Enum.slice(equation, index + 1..final - 1)
