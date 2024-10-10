@@ -29,8 +29,10 @@ defmodule App.Math do
             item ->
                 item == ~c"." || item == ?.
         end
-        
-        if frequencies[?.] do
+
+
+        if frequencies[?.] > 1 && frequencies[?.] != nil do
+            IO.inspect(frequencies)
             pos = Enum.find_index(
                 List.delete_at(
                     exp,
@@ -41,7 +43,7 @@ defmodule App.Math do
                     )
                 ),
                 equation_find
-            )
+            ) 
             App.Errors.invalid_float([exp | tail], pos + 1)
         end
 
