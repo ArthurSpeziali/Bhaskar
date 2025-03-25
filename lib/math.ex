@@ -66,8 +66,13 @@ defmodule App.Math do
         next = Enum.at(equation, char + 1)
         if !next, do: App.Errors.missing_char(equation)
 
-        number? = List.to_string(next)
-                  |> Integer.parse()
+        number? = if ?. in next do 
+            List.to_string(next)
+            |> Float.parse()
+        else
+            List.to_string(next)
+            |> Integer.parse()
+        end
 
         case number? do
             {_integer, ""} -> false
